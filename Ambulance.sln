@@ -1,0 +1,33 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27703.2035
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ambulance.Android", "Ambulance\Ambulance.Android\Ambulance.Android.csproj", "{89954F37-7790-4163-B74F-877D5AEC40A9}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Ambulance", "Ambulance\Ambulance\Ambulance.shproj", "{FE217DB0-312F-4736-92E4-C44144BF4EF6}"
+EndProject
+Global
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		Ambulance\Ambulance\Ambulance.projitems*{89954f37-7790-4163-b74f-877d5aec40a9}*SharedItemsImports = 4
+		Ambulance\Ambulance\Ambulance.projitems*{fe217db0-312f-4736-92e4-c44144bf4ef6}*SharedItemsImports = 13
+	EndGlobalSection
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{89954F37-7790-4163-B74F-877D5AEC40A9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{89954F37-7790-4163-B74F-877D5AEC40A9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{89954F37-7790-4163-B74F-877D5AEC40A9}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{89954F37-7790-4163-B74F-877D5AEC40A9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{89954F37-7790-4163-B74F-877D5AEC40A9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{89954F37-7790-4163-B74F-877D5AEC40A9}.Release|Any CPU.Deploy.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3C9BCEA0-542B-4AF4-AEA9-354C7DD48F06}
+	EndGlobalSection
+EndGlobal

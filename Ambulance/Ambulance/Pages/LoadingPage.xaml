@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Popup:PopupPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Ambulance.Pages.LoadingPage"
+             xmlns:Popup="clr-namespace:Rg.Plugins.Popup.Pages;assembly=Rg.Plugins.Popup"
+             xmlns:ExtendedControls="clr-namespace:Ambulance.ExtendedControls"
+>
+    <StackLayout VerticalOptions="CenterAndExpand" HorizontalOptions="CenterAndExpand" x:Name ="PopupLayout"  >
+        <StackLayout   x:Name ="MainLayout"  BackgroundColor="{StaticResource ColoredPanel}">
+            <ActivityIndicator IsRunning="True"  Color="Orange" WidthRequest="100" HeightRequest="100"/>
+            <Label x:Name="LoadingText"  HorizontalOptions="Center" HorizontalTextAlignment="Center" FontSize="Medium" FontAttributes="Bold"/>
+            <ExtendedControls:WebviewMap x:Name="WebViewMap" HeightRequest="0"/>
+        </StackLayout>
+    </StackLayout>
+</Popup:PopupPage>

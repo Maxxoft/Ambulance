@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Application xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Ambulance.App">
+    <Application.Resources>
+        <ResourceDictionary>
+            <Style x:Key="pageStyle" TargetType="Page">
+                <Setter Property="BackgroundColor" Value="#F7F4F0"/>
+            </Style>
+
+            <Style x:Key="buttonStyle" TargetType="Button">
+                <Setter Property="BorderWidth" Value="2"/>
+                <Setter Property="FontSize" Value="18"/>
+                <Setter Property="BorderColor" Value="Gray"/>
+                <Setter Property="BorderRadius" Value="15"/>
+                <Setter Property="BackgroundColor" Value="Orange"/>
+                <Setter Property="TextColor" Value="White" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="HeightRequest" Value="60" />
+            </Style>
+
+            <Style x:Key="buttonDisabledStyle" TargetType="Button">
+                <Setter Property="BorderWidth" Value="2"/>
+                <Setter Property="BorderColor" Value="#C8C6C2"/>
+                <Setter Property="BorderRadius" Value="15"/>
+                <Setter Property="BackgroundColor" Value="#C8C6C2"/>
+                <Setter Property="TextColor" Value="White" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="HeightRequest" Value="60" />
+
+            </Style>
+
+            <Style x:Key="BoldTitleLabel" TargetType="Label">
+                <Setter Property="FontSize" Value="24" />
+                <Setter Property="HorizontalOptions" Value="Center" />
+                <Setter Property="FontAttributes" Value="Bold"/>
+            </Style>
+
+            <Color x:Key="BoldTitleLabelYellowColor">#FFAF1A</Color>
+            <Color x:Key="ColoredPanel">#FFD8C4</Color>
+            <Color x:Key="SelectedRowColor">#FFE465</Color>
+
+            <Style x:Key="TableHeader" TargetType="Label">
+                <Setter Property="HorizontalOptions" Value="Center" />
+                <Setter Property="VerticalOptions" Value="CenterAndExpand" />
+                <Setter Property="Margin" Value="10,0,0,0" />
+                <Setter Property="FontAttributes" Value="Bold" />
+
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+ </Application>
