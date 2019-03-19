@@ -36,12 +36,14 @@ namespace Ambulance.ExtendedControls
             {
                 _MapWasLoaded = value;
                 if (value == true)
-                      ParentPage.MapLoaded();
+                    ParentPage.MapLoaded();
             }
         }
 
-        public List<Order> Orders { get; set; }
-
+        //public List<Order> Orders { get; set; }
+        public Order Order { get; set; }
+        public GeoLocation CurrentLoc { get; set; }
+        
         public void Clear()
         {
             GeoCoords = null;

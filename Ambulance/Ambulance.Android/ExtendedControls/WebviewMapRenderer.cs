@@ -45,15 +45,15 @@ namespace Ambulance.Droid.ExtendedControls
 					var MapView = e.NewElement as WebviewMap;
 					if (MapView != null)
 					{
-                        GeoLocation TempLoc = MainActivity.GetCurrentLocation();
-						if (TempLoc == null && MapView.MapId != MapType.CarLocation)
+                        MapView.CurrentLoc = MainActivity.GetCurrentLocation();
+						if (MapView.CurrentLoc == null && MapView.MapId != MapType.CarLocation)
 						{
 							MapView.ErrorOptimalRoute("");
 							return;
 						}
 
-                        var CurrLocX = TempLoc.Latitude.ToString().Replace(',', '.');
-                        var CurrLocY = TempLoc.Longitude.ToString().Replace(',', '.');
+                        var CurrLocX = MapView.CurrentLoc.Latitude.ToString().Replace(',', '.');
+                        var CurrLocY = MapView.CurrentLoc.Longitude.ToString().Replace(',', '.');
 
 						WebviewJSBridg = new WebviewJSBridge(this);
 						Control.Settings.JavaScriptEnabled = true;
@@ -78,23 +78,43 @@ namespace Ambulance.Droid.ExtendedControls
                             Url = "Map.html?Longitude=" + CurrLocX + "&Latitude=" + CurrLocY + "&Maptype=" + mapType;
                             Url += "&Array" + 0 + "=" + CurrLocX;
 							Url += "&Array" + 1 + "=" + CurrLocY;
-                            if (MapView.Orders != null && MapView.Orders.Count != 0)
+                            if (MapView.Order != null)
                             {
                                 int Counter = 2;
-                                for (int i = 0; i < MapView.Orders.Count; i++)
-                                {
-									Url += "&Array" + (Counter) + "=" + MapView.Orders[i].AddressFromLat.ToString().Replace(",", ".");
-                                    Counter++;
-									Url += "&Array" + (Counter) + "=" + MapView.Orders[i].AddressFromLng.ToString().Replace(",", ".");
-                                    Counter++;
-                                    Url += "&PtsType" + i + "=" + GetPmType(MapView.Orders[i].ArrivalDate);
+                                Url += "&Array" + (Counter) + "=" + MapView.Order.AddressFromLat.ToString().Replace(",", ".");
+                                Counter++;
+								Url += "&Array" + (Counter) + "=" + MapView.Order.AddressFromLng.ToString().Replace(",", ".");
+                                Counter++;
+                                Url += "&PtsType0=" + GetPmType(MapView.Order.ArrivalDate);
+                                Url += "&Array" + (Counter) + "=" + MapView.Order.AddressToLat.ToString().Replace(",", ".");
+                                Counter++;
+                                Url += "&Array" + (Counter) + "=" + MapView.Order.AddressToLng.ToString().Replace(",", ".");
+                                Counter++;
+                            }
+                        }
+
+                        if (MapView.MapId == MapType.OptimalRoute)
+                        {
+                            //    string mapType = (MapView.MapId == BoosterSide.MapType.SimpleRoute) ? "ShowRoute" : "NewOrders";
+                            string mapType = "NewOrders";
+                            Url = "Map.html?Longitude=" + CurrLocX + "&Latitude=" + CurrLocY + "&Maptype=OptimalRoute";
+                            Url += "&Array" + 0 + "=" + CurrLocX;
+                            Url += "&Array" + 1 + "=" + CurrLocY;
+                            if (MapView.Order != null)
+                            {
+                                int Counter = 2;
+                                Url += "&Array" + (Counter) + "=" + MapView.Order.AddressFromLat.ToString().Replace(",", ".");
+                                Counter++;
+                                Url += "&Array" + (Counter) + "=" + MapView.Order.AddressFromLng.ToString().Replace(",", ".");
+                                Counter++;
+                                    /*Url += "&PtsType" + i + "=" + GetPmType(MapView.Orders[i].ArrivalDate);
                                     Url += "&Array" + (Counter) + "=" + MapView.Orders[i].AddressToLat.ToString().Replace(",", ".");
                                     Counter++;
                                     Url += "&Array" + (Counter) + "=" + MapView.Orders[i].AddressToLng.ToString().Replace(",", ".");
-                                    Counter++;
-                                }
+                                    Counter++;*/
                             }
                         }
+
                         /*if (MapView.MapId == MapType.OptimalRoute)
                         {
                             Url = "Map.html?Longitude=" + CurrLocX + "&Latitude=" + CurrLocY + "&Maptype=OptimalRoute";
@@ -196,8 +216,8 @@ namespace Ambulance.Droid.ExtendedControls
 								Counter2++;
 							}
 						}*/
-                   
-						e.NewElement.Source = new UrlWebViewSource() { Url = System.IO.Path.Combine("file:///android_asset/", Url) };
+
+                        e.NewElement.Source = new UrlWebViewSource() { Url = System.IO.Path.Combine("file:///android_asset/", Url) };
                     }
                 }
 
@@ -272,8 +292,6 @@ namespace Ambulance.Droid.ExtendedControls
 
     }
 
-
-
     public class WebviewJSBridge : Java.Lang.Object
     {
         private WebviewMapRenderer WebviewMap;
@@ -294,10 +312,25 @@ namespace Ambulance.Droid.ExtendedControls
         [Android.Webkit.JavascriptInterface]
         public async void GetAllRoutes(Java.Lang.String Distance, Java.Lang.String Loc1x, Java.Lang.String Loc1y, Java.Lang.String Loc2x, Java.Lang.String Loc2y, Java.Lang.String Time)
         {
-            double Dist = 0.0;
-            try
+            double.TryParse(Distance.ToString(), out double dist);
+            double.TryParse(Loc1x.ToString(), out double loc1x);
+            double.TryParse(Loc1y.ToString(), out double loc1y);
+            double.TryParse(Loc2x.ToString(), out double loc2x);
+            double.TryParse(Loc2y.ToString(), out double loc2y);
+
+            if /*(Math.Abs(WebView.Order.AddressFromLat - loc1x) <= 0.01 && Math.Abs(WebView.Order.AddressFromLng - loc1y) <= 0.01 && Math.Abs(WebView.CurrentLoc.Latitude - loc2x) <= 0.01 && Math.Abs(WebView.CurrentLoc.Longitude - loc2y) <= 0.01) ||*/
+                (Math.Abs(WebView.CurrentLoc.Latitude - loc1x) <= 0.01 && Math.Abs(WebView.CurrentLoc.Longitude - loc1y) <= 0.01 && Math.Abs(WebView.Order.AddressFromLat - loc2x) <= 0.01 && Math.Abs(WebView.Order.AddressFromLng - loc2y) <= 0.01)
             {
-                Dist = Convert.ToDouble(Distance.ToString(), System.Globalization.CultureInfo.InvariantCulture);
+                if (dist > 0) WebView.Order.Distance = Math.Round(dist / 1000, 2);
+                WebView.Order.CalcDistanceDate = DateTime.Now;
+                WebView.CurrentLoc.Latitude = 0;
+                WebView.CurrentLoc.Longitude = 0;
+                WebView.ParentPage?.RouteCalculated();
+            }
+
+            /*try
+            {
+                Dist = Convert.ToDouble(Distance.ToString().Replace(".", ","), System.Globalization.CultureInfo.InvariantCulture);
                 var time = Convert.ToDouble(Time.ToString(), System.Globalization.CultureInfo.InvariantCulture);
                 int Rowid = Locations.FindIndex(x => x.AddressFromLat.ToString().TrimEnd(new Char[] { '0' }).Replace(",", ".") == Loc1x.ToString().Replace(",", ".") 
                                                 && x.AddressFromLng.ToString().TrimEnd(new Char[] { '0' }).Replace(",", ".") == Loc1y.ToString().Replace(",", "."));
@@ -334,12 +367,12 @@ namespace Ambulance.Droid.ExtendedControls
                         WebView.ErrorOptimalRoute();
                     }
                 }
-            }
+            }*/
         }
 
         private void SetOptimalRoute()
         {
-            if (TableDistance.ToList().FindIndex(x => x.Distance.ContainsKey(-1)) != -1)
+            /*if (TableDistance.ToList().FindIndex(x => x.Distance.ContainsKey(-1)) != -1)
             {
                 if (!HasError)
                     WebView.ErrorOptimalRoute();
@@ -369,7 +402,7 @@ namespace Ambulance.Droid.ExtendedControls
 
             var res = (long)TspImplementaion.Location.GetTotalDistance(startLoc, (TspImplementaion.Location[])bestSolutionSoFar);
 
-
+            */
             /*var result = Locations.OrderBy(x => resultedList.FindIndex(y => y.OrderId == x.ServiceId)).ToList();
             for (int i = 1; i < result.Count; i++)
             {
@@ -380,7 +413,7 @@ namespace Ambulance.Droid.ExtendedControls
 
             }
             WebView.SetOrdersOrder(result, totalLenght, totalTime);*/
-
+            
         }
 
         [Export]

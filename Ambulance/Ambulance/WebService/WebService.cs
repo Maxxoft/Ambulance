@@ -14,6 +14,7 @@ using Ambulance.ObjectModel;
 using Ambulance.Dependency;
 using Ambulance.Data;
 using Ambulance.Extensions;
+using System.Globalization;
 
 namespace Ambulance.WebService
 {
@@ -39,7 +40,7 @@ namespace Ambulance.WebService
         public string orderAddressTo { get; set; }      // адрес куда везти пациента(медучреждение), текст
         public float orderToLat { get; set; }           // координаты широты медучреждения, дробное число 
         public float orderToLng { get; set; }           // координаты долготы медучреждения, дробное число
-        public DateTime orderArrivalDate { get; set; }  // дата и время во сколько нужно быть у пациента, дата - формат : день-месяц-год часы-минуты 
+        public string orderArrivalDate { get; set; }  // дата и время во сколько нужно быть у пациента, дата - формат : день-месяц-год часы-минуты 
 	    public string orderSickName { get; set; }       // ФИО пациента, текст
 	    public string orderSickPhone { get; set; }      // Телефон пациента, текст
 	    public string orderAutoData { get; set; }       // информация по автомобилю, текст
@@ -253,16 +254,17 @@ namespace Ambulance.WebService
                     AddressTo = res.Order[0].orderAddressTo,
                     AddressToLat = res.Order[0].orderToLat,
                     AddressToLng = res.Order[0].orderToLng,
-                    ArrivalDate = res.Order[0].orderArrivalDate,
                     AutoData = res.Order[0].orderAutoData,
                     Comment = res.Order[0].orderComment,
                     SickName = res.Order[0].orderSickName,
                     SickPhone = res.Order[0].orderSickPhone,
-                    Status = (OrderStatus)res.Order[0].orderStatus
+                    Status = (OrderStatus)res.Order[0].orderStatus,
+                    ArrivalDate = DateTime.ParseExact(res.Order[0].orderArrivalDate, "dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None)
                 };
             }
-            catch
+            catch (Exception e)
             {
+                Debug.WriteLine(e.Message);
                 return null;
             }
         }
@@ -288,12 +290,12 @@ namespace Ambulance.WebService
                             AddressTo = apiOrder.orderAddressTo,
                             AddressToLat = apiOrder.orderToLat,
                             AddressToLng = apiOrder.orderToLng,
-                            ArrivalDate = apiOrder.orderArrivalDate,
                             AutoData = apiOrder.orderAutoData,
                             Comment = apiOrder.orderComment,
                             SickName = apiOrder.orderSickName,
                             SickPhone = apiOrder.orderSickPhone,
-                            Status = OrderStatus.New
+                            Status = OrderStatus.New,
+                            ArrivalDate = DateTime.ParseExact(apiOrder.orderArrivalDate, "dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None)
                         };
                         orders.Add(order);
                     }

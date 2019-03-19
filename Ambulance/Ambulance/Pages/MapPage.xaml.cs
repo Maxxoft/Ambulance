@@ -22,11 +22,11 @@ namespace Ambulance.Pages
         public MapPage(Order order, MapType mapType)
         {
             InitializeComponent();
+            wwMap.MapId = mapType;
             if (mapType == MapType.SimpleRoute)
             {
                 Title = "Маршрут выполнения заказа";
-                wwMap.Orders = new List<Order> { order };
-                wwMap.MapId = mapType;
+                wwMap.Order = order;
             }
             else if (mapType == MapType.NewOrders)
             {

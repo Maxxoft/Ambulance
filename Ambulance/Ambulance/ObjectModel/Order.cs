@@ -28,6 +28,7 @@ namespace Ambulance.ObjectModel
         public string Comment { get; set; }
         public OrderStatus Status { get; set; }
         public double Distance { get; set; }
+        public DateTime CalcDistanceDate { get; set; }
     }
 
     public static class OrderHelper

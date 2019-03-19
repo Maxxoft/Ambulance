@@ -9,6 +9,7 @@ using Ambulance.Data;
 using Ambulance.WebService;
 using Ambulance.Dependency;
 using Ambulance.ObjectModel;
+using System.Collections.Generic;
 
 namespace Ambulance.Pages
 {
@@ -47,26 +48,31 @@ namespace Ambulance.Pages
             {
                 while (refreshTimerActive)
                 {
-                    await Task.Delay(90000);
+                    await Task.Delay(60000);
+                    AppData.StoreDistances();
+
+                    // Refresh free orders
                     if (!refreshTimerActive) return;
-                    var oldOrderIds = AppData.Orders?.Select(item => item.OrderId)?.ToList();
-                    var res = await Task.Run(() => ApiService.GetNewOrders());
-                    if (!string.IsNullOrEmpty(res)) return;
-                    if (oldOrderIds != null)
-                    { 
-                        foreach (var orderId in oldOrderIds)
-                            if (AppData.Orders?.Where(x => x.OrderId == orderId).Count() == 0) newOrdersAmount++;
-                    }
-                
+                    await Task.Run(() => ApiService.GetNewOrders());
+                    if (!refreshTimerActive) return;
+                    if (AppData.Crew.ActiveOrder?.OrderId > 0)
+                        AppData.Crew.ActiveOrder = await ApiService.GetOrderDetails(AppData.Crew.ActiveOrder.OrderId);
+
+                    newOrdersAmount += AppData.RestoreDistances();
                     Device.BeginInvokeOnMainThread(() =>
                     {
                         if (!(curPage is OrdersPage page)) return;
-                        if (newOrdersAmount > 0 && page?.PageType == PageType.ActiveOrder)
+                        if (page.PageType == PageType.ActiveOrder && (AppData.Crew.ActiveOrder?.Status ?? OrderStatus.Cancelled) == OrderStatus.Cancelled)
+                        {
+                            page.CalcDistance = false;
+                            SwitchToPage(PageType.FreeOrders, false);
+                        }
+                        else if (page.PageType == PageType.ActiveOrder && newOrdersAmount > 0)
                             page.SetAlertNewOrders(newOrdersAmount);
                         else if (page?.PageType == PageType.FreeOrders)
                         {
-							if (newOrdersAmount > 0)
-								DependencyService.Get<IAPIHelper>().PlayAlertSound();
+                            if (newOrdersAmount > 0)
+                                DependencyService.Get<IAPIHelper>().PlayAlertSound();
                             page.RefreshContent();
                             newOrdersAmount = 0;
                         }
@@ -108,6 +114,7 @@ namespace Ambulance.Pages
             if (refresh)
             {
                 await Detail.Navigation.PushPopupAsync(busyPopup, true);
+                AppData.StoreDistances();
                 switch (item.Pagetype)
                 {
                     case PageType.FreeOrders:
@@ -115,7 +122,13 @@ namespace Ambulance.Pages
                         res = await Task.Run(() => ApiService.GetNewOrders());
                         await App.ShowTestLog(this);
                         break;
+                    case PageType.ActiveOrder:
+                        App.ClearTestLog();
+                        AppData.Crew.ActiveOrder = await Task.Run(() => ApiService.GetOrderDetails(AppData.Crew.ActiveOrder.OrderId));
+                        await App.ShowTestLog(this);
+                        break;
                 }
+                AppData.RestoreDistances();
             }
 
             curPage = new OrdersPage(item.Pagetype);

@@ -17,7 +17,7 @@ using Xamarin.Forms.Xaml;
 namespace Ambulance.Pages
 {
     [XamlCompilation(XamlCompilationOptions.Compile)]
-    public partial class OrdersPage : ContentPage
+    public partial class OrdersPage : ContentPage, IMapPage
     {
         const string FREE_ORDERS_TITLE = "Новые заказы";
         const string ACTIVE_ORDER_TITLE = "Активный заказ";
@@ -54,19 +54,23 @@ namespace Ambulance.Pages
         {
             InitializeComponent();
             PageType = pageType;
-        }
-
-        protected override void OnAppearing()
-        {
-            base.OnAppearing();
             RefreshContent();
-            //DependencyService.Get<IAPIHelper>().RequestLocationsPermissions();
+
+            DependencyService.Get<IAPIHelper>().RequestLocationsPermissions();
 
             // Send FCM Token            
             //Task.Run(() => ApiService.SendPushToken());
 
-            //StartPositionUpdateTimer();
+            StartPositionUpdateTimer();
+            StartCalcDistances();
         }
+
+        /*protected override void OnAppearing()
+        {
+            base.OnAppearing();
+            RefreshContent();
+            
+        }*/
 
         List<Order> curOrders;
         Order selectedOrder;
@@ -124,7 +128,7 @@ namespace Ambulance.Pages
             lblHeader.Text = HeaderByPageType(PageType);
             lblEmptyOrders.Text = EmptyTextByPageType(PageType);
             btnSwitch.Clicked += BtnSwitch_Clicked;
-            btnRefresh.IsVisible = PageType == PageType.FreeOrders;
+            //btnRefresh.IsVisible = PageType == PageType.FreeOrders;
 
             var ordersEmpty = curOrders.Count == 0;
             lblEmptyOrders.IsVisible = ordersEmpty;
@@ -197,7 +201,7 @@ namespace Ambulance.Pages
 
         private void BtnGetRoute_Clicked(object sender, EventArgs e)
         {
-            Navigation.PushAsync(new MapPage(selectedOrder, MapType.SimpleRoute));
+            //Navigation.PushAsync(new MapPage(selectedOrder, MapType.SimpleRoute));
 
             /*var LoadingPage = new LoadingPage();
             LoadingPage.MapControl.MapId = MapType.SimpleRoute;
@@ -229,6 +233,7 @@ namespace Ambulance.Pages
             if (Navigation.NavigationStack.FirstOrDefault(x => x is MapPage) != null)
                 return;
             Navigation.PushAsync(new MapPage(selectedOrder, MapType.SimpleRoute));
+            //new MapPage(selectedOrder, MapType.OptimalRoute);
             /*if (selectedOrder?.AddressFromLat != 0 && selectedOrder?.AddressFromLng != 0)
                 Navigation.PushAsync(new MapPage(selectedOrder.AddressFromLat, selectedOrder.AddressFromLng));*/
         }
@@ -256,6 +261,8 @@ namespace Ambulance.Pages
                 AppData.Orders.Remove(selectedOrder);
                 MainPage.Instance?.SwitchToPage(PageType.ActiveOrder, false);
             }
+            else if (selectedOrder.Status == OrderStatus.Done)
+                MainPage.Instance?.SwitchToPage(PageType.FreeOrders, true);
             else
                 btnUpdateOrder.Text = OrderHelper.EligibleActionName(selectedOrder.Status);
         }
@@ -404,10 +411,10 @@ namespace Ambulance.Pages
             lbArrivalDate.Text = "Дата и время: " + selectedOrder.ArrivalDate.ToString("dd.MM.yy HH:mm");
             lbAddressFrom.Text = "Адрес откуда: " + selectedOrder.AddressFrom;
             lbAddressTo.Text = "Адрес куда: " + selectedOrder.AddressTo;
-            lbDistance.Text = "До клиента: " + selectedOrder.Distance.ToString() + " км";
+            lbDistance.Text = "До пациента: " + selectedOrder.Distance.ToString() + " км";
             lbComment.Text = "Доп. инфо: " + selectedOrder.Comment;
             btnUpdateOrder.Text = OrderHelper.EligibleActionName(selectedOrder.Status);
-            btnCancelOrder.IsVisible = PageType == PageType.ActiveOrder;
+            btnCancelOrder.IsVisible = false;
         }
 
         private void OrdersTable_ItemSelected(object sender, SelectedItemChangedEventArgs e)
@@ -465,6 +472,83 @@ namespace Ambulance.Pages
                 iter.MoveNext();
                 return iter.Current;
             }
+        }
+
+        Order calcOrder;
+        WebviewMap webviewMap;
+        public bool CalcDistance = false;
+        int CalcTime;
+        public void StartCalcDistances()
+        {
+            if (CalcDistance) return;
+            CalcDistance = true;
+            Task.Run(async () =>
+            {
+                while (CalcDistance)
+                {
+                    while (webviewMap != null)
+                    {
+                        await Task.Delay(500);
+                        CalcTime += 500;
+                        if (CalcTime > 90000)
+                        {
+                            Device.BeginInvokeOnMainThread(() =>
+                            {
+                                if (webviewMap != null)
+                                    gridOrderActions.Children.Remove(webviewMap);
+                                webviewMap = null;
+                            });
+                            if (calcOrder != null)
+                                calcOrder.CalcDistanceDate = DateTime.Now;
+                        }
+                    }
+                    if (!CalcDistance) return;
+
+                    calcOrder = null;
+                    if ((DateTime.Now - (AppData.Crew.ActiveOrder?.CalcDistanceDate ?? DateTime.Now)).TotalMinutes > 5)
+                        calcOrder = AppData.Crew.ActiveOrder;
+                    if (calcOrder == null)
+                        calcOrder = curOrders?.FirstOrDefault(x => (DateTime.Now - x.CalcDistanceDate).TotalMinutes > 5);
+                    if (calcOrder != null)
+                    {
+                        webviewMap = new WebviewMap
+                        {
+                            ParentPage = this,
+                            MapId = MapType.OptimalRoute,
+                            Order = calcOrder,
+                            HeightRequest = 0,
+                            WidthRequest = 0
+                        };
+                        Device.BeginInvokeOnMainThread(() => gridOrderActions.Children.Add(webviewMap));
+                    }
+                }
+            });
+        }
+
+        public void MapLoaded()
+        {
+            //throw new NotImplementedException();
+        }
+
+        public void RouteCalculated()
+        {
+            Device.BeginInvokeOnMainThread(() =>
+            {
+                if (webviewMap != null)
+                    gridOrderActions.Children.Remove(webviewMap);
+                webviewMap = null;
+                RefreshContent();
+            });
+        }
+
+        public void OpenPage(PageType Type, string MapX, string Map)
+        {
+            //throw new NotImplementedException();
+        }
+
+        public void MapErrorAsync(string Error)
+        {
+            //throw new NotImplementedException();
         }
     }
 }

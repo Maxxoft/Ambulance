@@ -1,7 +1,8 @@
 ﻿
 function ShowRoute(maptype) {
   
-    var Coords =  getCoordsArray();
+    var Coords = getCoordsArray();
+    Set(Coords);
     // Создаем мультимаршрут и настраиваем его внешний вид с помощью опций.
     var multiRoute = new ymaps.multiRouter.MultiRoute({
         referencePoints: Coords
@@ -114,8 +115,31 @@ function ShowRoute(maptype) {
                 );
 
         }
+    }    
+
+    function Set(ArrayCoords) {
+        for (var i = 0; i < ArrayCoords.length; i++)
+            for (var j = 0; j < ArrayCoords.length; j++) {
+
+                ymaps.route([[ArrayCoords[i][0], ArrayCoords[i][1]], [ArrayCoords[j][0], ArrayCoords[j][1]]], {
+                    mapStateAutoApply: true
+                }
+                ).then(function (route) {
+                    var points = route.getWayPoints();
+                    CSharp.GetAllRoutes(
+                        route.getLength().toString(),
+                        points.get(0).geometry.getCoordinates()[0].toString(),
+                        points.get(0).geometry.getCoordinates()[1].toString(),
+                        points.get(1).geometry.getCoordinates()[0].toString(),
+                        points.get(1).geometry.getCoordinates()[1].toString(),
+                        route.getJamsTime().toString()
+                    );
+                });
+
+            }
+
+
     }
-   
   }
     
 
