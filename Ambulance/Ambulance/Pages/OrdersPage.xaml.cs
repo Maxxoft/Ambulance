@@ -48,63 +48,95 @@ namespace Ambulance.Pages
             return pageType == PageType.ActiveOrder ? ACTIVE_ORDER_EMPTY_TEXT : FREE_ORDERS_EMPTY_TEXT;
         }
 
-        public PageType PageType { get; }
 
+        private PageType _pageType;
+        public PageType PageType
+        {
+            get { return _pageType; }
+            set
+            {
+                if (_pageType == value) return;
+                _pageType = value;
+                RefreshContent();
+            }
+        }
+
+        public bool IsBusy { get; private set; }
         public OrdersPage(PageType pageType)
         {
             InitializeComponent();
-            PageType = pageType;
+            _pageType = pageType;
+
+            btnSwitch.Clicked += BtnSwitch_Clicked;
+            tableOrders.ItemSelected += OrdersTable_ItemSelected;
+            btnRefresh.Clicked += BtnRefresh_Clicked;
+            btnCall.Clicked += BtnCall_Clicked;
+            btnShowOnMap.Clicked += BtnShowOnMap_Clicked;
+            btnOpenNavigator.Clicked += BtnOpenNavigator_Clicked;
+            btnUpdateOrder.Clicked += BtnUpdateOrder_Clicked;
+            btnCancelOrder.Clicked += BtnCancelOrder_Clicked;
+
+            PersonIco.Source = ImageSource.FromFile("PersonIco.ico");
+            PersonIco.HeightRequest = 100;
+
             RefreshContent();
-
-            DependencyService.Get<IAPIHelper>().RequestLocationsPermissions();
-
-            // Send FCM Token            
-            //Task.Run(() => ApiService.SendPushToken());
-
-            StartPositionUpdateTimer();
             StartCalcDistances();
         }
 
-        /*protected override void OnAppearing()
-        {
-            base.OnAppearing();
-            RefreshContent();
-            
-        }*/
-
+        
         List<Order> curOrders;
         Order selectedOrder;
         int selectedOrderId;
 
         public void RefreshContent()
         {
-            if (PageType == PageType.ActiveOrder)
+            try
             {
-                curOrders = new List<Order>();
-                if (AppData.Crew.ActiveOrder != null)
-                    curOrders.Add(AppData.Crew.ActiveOrder);
-                btnSwitch.Text = string.Format("НОВЫЕ ЗАКАЗЫ ({0})", AppData.Orders?.Count ?? 0);
-            }
-            else if (PageType == PageType.FreeOrders)
-            {
-                curOrders = AppData.Orders.OrderBy(x => x.ArrivalDate).ToList();
-                btnSwitch.Text = string.Format("АКТИВНЫЕ ЗАКАЗЫ ({0})", AppData.Crew.ActiveOrder == null ? 0 : 1);
-            }
-
-            var ordersEmpty = curOrders.Count == 0;
-            if (!ordersEmpty)
-            {
-                tableOrders.ItemsSource = OrdersToView();
-                selectedOrder = curOrders.FirstOrDefault(x => x.OrderId == selectedOrderId);
-                if (selectedOrder == null)
+                IsBusy = true;
+                if (PageType == PageType.ActiveOrder)
                 {
-                    selectedOrder = curOrders[0];
+                    curOrders = new List<Order>();
+                    if (AppData.Crew.ActiveOrder != null)
+                        curOrders.Add(AppData.Crew.ActiveOrder);
+                    btnSwitch.Text = string.Format("НОВЫЕ ЗАКАЗЫ ({0})", AppData.Orders?.Count ?? 0);
                 }
+                else if (PageType == PageType.FreeOrders)
+                {
+                    curOrders = AppData.Orders.OrderBy(x => x.ArrivalDate).ToList();
+                    btnSwitch.Text = string.Format("АКТИВНЫЕ ЗАКАЗЫ ({0})", AppData.Crew.ActiveOrder == null ? 0 : 1);
+                }
+
+                selectedOrder = null;
+                var ordersEmpty = curOrders.Count == 0;
+                if (!ordersEmpty)
+                {
+                    tableOrders.ItemsSource = OrdersToView();
+                    selectedOrder = curOrders.FirstOrDefault(x => x.OrderId == selectedOrderId);
+                    if (selectedOrder == null)
+                    {
+                        selectedOrder = curOrders[0];
+                    }
+                    selectedOrderId = selectedOrder.OrderId;
+                }
+
+                Title = TitleByPageType(PageType);
+                lblHeader.Text = HeaderByPageType(PageType);
+                lblEmptyOrders.Text = EmptyTextByPageType(PageType);
+
+                //btnRefresh.IsVisible = PageType == PageType.FreeOrders;
+
+                lblEmptyOrders.IsVisible = ordersEmpty;
+                gridOrders.IsVisible = !ordersEmpty;
+                lblDetailsHeader.IsVisible = !ordersEmpty;
+
+                SetDetailInfo();
+                ResizeTable();
+                HighlightItems();
             }
-            SetContent();
-            SetDetailInfo();
-            ResizeTable();
-            HighlightItems();
+            finally
+            {
+                IsBusy = false;
+            }
         }
 
         private List<OrderView> OrdersToView()
@@ -120,43 +152,6 @@ namespace Ambulance.Pages
                 });
             }
             return ov;
-        }
-
-        private void SetContent()
-        {
-            Title = TitleByPageType(PageType);
-            lblHeader.Text = HeaderByPageType(PageType);
-            lblEmptyOrders.Text = EmptyTextByPageType(PageType);
-            btnSwitch.Clicked += BtnSwitch_Clicked;
-            //btnRefresh.IsVisible = PageType == PageType.FreeOrders;
-
-            var ordersEmpty = curOrders.Count == 0;
-            lblEmptyOrders.IsVisible = ordersEmpty;
-            gridOrders.IsVisible = !ordersEmpty;
-            lblDetailsHeader.IsVisible = !ordersEmpty;
-
-            PersonIco.Source = ImageSource.FromFile("PersonIco.ico");
-            PersonIco.HeightRequest = 100;
-
-            //pickerOrderType.IsVisible = gridFreeOrderActions.IsVisible;
-            tableOrders.ItemSelected += OrdersTable_ItemSelected;
-            btnRefresh.Clicked += BtnRefresh_Clicked;
-            //btnShowOnMap.Clicked += CarLocationButton_Clicked;
-            btnCall.Clicked += BtnCall_Clicked;
-            //btnGetRoute.Clicked += BtnGetRoute_Clicked;
-            btnShowOnMap.Clicked += BtnShowOnMap_Clicked;
-            btnOpenNavigator.Clicked += BtnOpenNavigator_Clicked;
-            btnUpdateOrder.Clicked += BtnUpdateOrder_Clicked;
-            btnCancelOrder.Clicked += BtnCancelOrder_Clicked;           
-            
-            /*btnActiveOrder.Clicked += BackToMyOrdersButton_Clicked;
-            pickerOrderType.PickerControl.Items.Clear();
-            pickerOrderType.PickerControl.Items.Add("Все");
-            pickerOrderType.PickerControl.Items.Add("Срочные");
-            pickerOrderType.PickerControl.Items.Add("Обычные");
-            pickerOrderType.PickerControl.Items.Add("Не срочные");
-            pickerOrderType.PickerControl.SelectedIndex = 0;
-            pickerOrderType.PickerControl.SelectedIndexChanged += PickerControl_SelectedIndexChanged;*/
         }
 
         private void BtnOpenNavigator_Clicked(object sender, EventArgs e)
@@ -178,7 +173,8 @@ namespace Ambulance.Pages
         {
             if (PageType == PageType.FreeOrders && AppData.Crew.ActiveOrder == null)
                 return;
-            MainPage.Instance?.SwitchToPage(PageType == PageType.FreeOrders ? PageType.ActiveOrder : PageType.FreeOrders, false);
+
+            PageType = PageType == PageType.FreeOrders ? PageType.ActiveOrder : PageType.FreeOrders;
         }
 
         async void BtnCall_Clicked(object sender, EventArgs e)
@@ -194,82 +190,75 @@ namespace Ambulance.Pages
             Device.OpenUri(new Uri("tel:" + pn));
         }
 
-        void BtnRefresh_Clicked(object sender, EventArgs e)
+        async void BtnRefresh_Clicked(object sender, EventArgs e)
         {
-            MainPage.Instance.SwitchToPage(PageType, true);
+            try
+            {
+                IsBusy = true;
+                if (PageType == PageType.FreeOrders)
+                    await ApiService.GetNewOrders();
+                else
+                    await ApiService.GetActiveOrder();
+                RefreshContent();
+            }
+            finally
+            {
+                IsBusy = false;
+            }
         }
-
-        private void BtnGetRoute_Clicked(object sender, EventArgs e)
-        {
-            //Navigation.PushAsync(new MapPage(selectedOrder, MapType.SimpleRoute));
-
-            /*var LoadingPage = new LoadingPage();
-            LoadingPage.MapControl.MapId = MapType.SimpleRoute;
-            LoadingPage.MapControl.Orders = new List<Order> { selectedOrder };
-            LoadingPage.MapControl.ParentPage = LoadingPage;
-            PopupNavigation.Instance.PushAsync(LoadingPage, true);
-            LoadingPage.Disappearing += LoadingPage_Disappearing;*/
-        }
-
-        /*private void LoadingPage_Disappearing(object sender, EventArgs e)
-        {
-            var loadPage = sender as LoadingPage;
-            if (loadPage == null) return;
-
-            if (!loadPage.DialogResult) return;
-
-            Orders = loadPage.MapControl.Orders.Clone();
-            tableOrders.ItemsSource = Orders.ToView(PageType == PageType.BoosterOrders);
-            SelectedOrder = Orders[0];
-            HighlightItems();
-            loadPage.Disappearing -= LoadingPage_Disappearing;
-
-            Settings.AppState.CalcRouteTime = DateTime.Now;
-            Settings.AppState.Save();
-        }*/
 
         private void BtnShowOnMap_Clicked(object sender, EventArgs e)
         {
             if (Navigation.NavigationStack.FirstOrDefault(x => x is MapPage) != null)
                 return;
             Navigation.PushAsync(new MapPage(selectedOrder, MapType.SimpleRoute));
-            //new MapPage(selectedOrder, MapType.OptimalRoute);
-            /*if (selectedOrder?.AddressFromLat != 0 && selectedOrder?.AddressFromLng != 0)
-                Navigation.PushAsync(new MapPage(selectedOrder.AddressFromLat, selectedOrder.AddressFromLng));*/
         }
 
         async void BtnUpdateOrder_Clicked(object sender, EventArgs e)
         {
             if (selectedOrder == null) return;
 
-            var ans = await DisplayAlert("", OrderHelper.EligibleActionConfirmation(selectedOrder.Status), "Ок", "Отмена");
-            if (!ans) return;
-            var newStatus = selectedOrder.Status + 1;
-            if (newStatus == OrderStatus.Cancelled)
-                newStatus++;
-            App.ClearTestLog();
-            var res = await ApiService.UpdateOrder(selectedOrder, (int)newStatus);
-            await App.ShowTestLog(this);
-            if (!string.IsNullOrEmpty(res))
+            try
             {
-                await DisplayAlert("Ошибка", res, "OK");
-                return;
+                IsBusy = true;
+                var ans = await DisplayAlert("", OrderHelper.EligibleActionConfirmation(selectedOrder.Status), "Ок", "Отмена");
+                if (!ans) return;
+
+                var newStatus = selectedOrder.Status + 1;
+                if (newStatus == OrderStatus.Cancelled)
+                    newStatus++;
+                App.ClearTestLog();
+                var res = await ApiService.UpdateOrder(selectedOrder, (int)newStatus);
+                await App.ShowTestLog(this);
+                if (!string.IsNullOrEmpty(res))
+                {
+                    await DisplayAlert("Ошибка", res, "OK");
+                    return;
+                }
+
+                if (selectedOrder.Status == OrderStatus.Assigned)
+                {
+                    AppData.Crew.ActiveOrder = selectedOrder;
+                    AppData.Orders.Remove(selectedOrder);
+                    PageType = PageType.ActiveOrder;
+                }
+                else if (selectedOrder.Status == OrderStatus.Done)
+                {
+                    AppData.Crew.ActiveOrder = null;
+                    PageType = PageType.FreeOrders;
+                }
+                else
+                    btnUpdateOrder.Text = OrderHelper.EligibleActionName(selectedOrder.Status);
             }
-            if (selectedOrder.Status == OrderStatus.Assigned)
+            finally
             {
-                AppData.Crew.ActiveOrder = selectedOrder;
-                AppData.Orders.Remove(selectedOrder);
-                MainPage.Instance?.SwitchToPage(PageType.ActiveOrder, false);
+                IsBusy = false;
             }
-            else if (selectedOrder.Status == OrderStatus.Done)
-                MainPage.Instance?.SwitchToPage(PageType.FreeOrders, true);
-            else
-                btnUpdateOrder.Text = OrderHelper.EligibleActionName(selectedOrder.Status);
         }
 
-        async void BtnCancelOrder_Clicked(object sender, EventArgs e)
+        void BtnCancelOrder_Clicked(object sender, EventArgs e)
         {
-            if (selectedOrder == null) return;
+            /*if (selectedOrder == null) return;
 
             var ans = await DisplayAlert("", "Отказаться от выполнения заявки?", "Ок", "Отмена");
             if (!ans) return;
@@ -283,56 +272,7 @@ namespace Ambulance.Pages
                 return;
             }
             AppData.Crew.ActiveOrder = null;
-            MainPage.Instance?.SwitchToPage(PageType.FreeOrders, true);
-        }
-        
-
-        private void GetRouteButton_Clicked(object sender, EventArgs e)
-        {
-            /*var LoadingPage = new LoadingPopup();
-            LoadingPage.MapControl.MapId = MapType.OptimalRoute;
-            LoadingPage.MapControl.BoosterOrders = Orders;
-            LoadingPage.MapControl.ParentPage = LoadingPage;
-            Navigation.PushPopupAsync(LoadingPage, true);
-            LoadingPage.Disappearing += LoadingPage_Disappearing;*/
-        }
-
-        //TODO
-        /*private void LoadingPage_Disappearing(object sender, EventArgs e)
-        {
-            var loadPage = sender as LoadingPopup;
-            if (loadPage == null) return;
-
-            if (!loadPage.DialogResult) return;
-
-            Orders = loadPage.MapControl.BoosterOrders.Clone();
-            tableOrders.ItemsSource = Orders.ToView(PageType == PageType.BoosterOrders);
-            SelectedOrder = Orders[0];
-            HighlightItems();
-            loadPage.Disappearing -= LoadingPage_Disappearing;
-
-            Settings.AppState.CalcRouteTime = DateTime.Now;
-            Settings.AppState.Save();
-        }*/
-
-
-        static bool PositionUpdateTimer;
-        public void StartPositionUpdateTimer()
-        {
-            if (PositionUpdateTimer) return;
-            PositionUpdateTimer = true;
-            Task.Run(async () =>
-            {
-                while (PositionUpdateTimer)
-                {
-                    await Task.Delay(60000);
-                    if (!PositionUpdateTimer) return;
-                    var currentCoord = DependencyService.Get<IAPIHelper>().GetCurrentLocation();
-                    if (currentCoord == null || currentCoord.Latitude < 1 || currentCoord.Longitude < 1)
-                        continue;
-                    await ApiService.UpdateLocation(currentCoord.Latitude, currentCoord.Longitude);
-                }
-            });
+            MainPage.Instance?.SwitchToPage(PageType.FreeOrders, true);*/
         }
 
         private void ResizeTable()
@@ -341,65 +281,6 @@ namespace Ambulance.Pages
             if (ordersCount != 0)
                 tableOrders.HeightRequest = ((int)ordersCount + 1) * tableOrders.RowHeight + 10;
         }
-
-        /*private void PickerControl_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (tableOrders.ItemsSource != null)
-                if (pickerOrderType.PickerControl.SelectedIndex == 0)
-                    tableOrders.ItemsSource = Orders.OrderBy(x => (x.ToDate != null) ? x.ToDate.Value.Ticks : 99999999999999999).ToList().ToView(false);
-            if (pickerOrderType.PickerControl.SelectedIndex == 1)
-                tableOrders.ItemsSource = GetFilteredOrders(4).ToView(false);
-            if (pickerOrderType.PickerControl.SelectedIndex == 2)
-                tableOrders.ItemsSource = GetFilteredOrders(2).ToView(false);
-            if (pickerOrderType.PickerControl.SelectedIndex == 3)
-                tableOrders.ItemsSource = GetFilteredOrders(99999999).ToView(false);
-            ResizeTable();
-
-        }
-
-        private List<Order> GetFilteredOrders(int ExpiredTime)
-        {
-            return Orders.Where(x => TimeSpan.FromTicks(x.ToDate.Value.Ticks - DateTime.Now.Ticks).TotalHours < ExpiredTime).OrderBy(x => (x.ToDate != null) ? x.ToDate.Value.Ticks : 99999999999999999).ToList();
-        }*/
-
-        private void CalculateRoute()
-        {
-
-        }
-        /*
-        RejectPopup rejectPopup;
-        async private void CancelButton_Clicked(object sender, EventArgs e)
-        {
-            if (SelectedOrder == null) return;
-
-            if (rejectPopup == null)
-            {
-                rejectPopup = new RejectPopup();
-                rejectPopup.Disappearing += RejetPage_Disappearing;
-            }
-            rejectPopup.Clear();
-            await Navigation.PushPopupAsync(rejectPopup, true);
-        }
-
-        async void RejetPage_Disappearing(object sender, EventArgs e)
-        {
-            if (!rejectPopup.Result) return;
-            App.ClearTestLog();
-            var res = await Task.Run(() => MFService.BoosterRejectOrder(SelectedOrder, rejectPopup.Text));
-            await App.ShowTestLog(this);
-            if (!string.IsNullOrEmpty(res))
-            {
-                await DisplayAlert("Ошибка", res, "OK");
-                return;
-            }
-            SelectedOrder.Booster = null;
-            MFData.BoosterOrders.Remove(SelectedOrder);
-            MFData.FreeOrders.Add(SelectedOrder);
-
-            MainPage.Instance?.SwitchToPage(PageType.BoosterOrders, false);
-        }
-
-        */
 
         private void SetDetailInfo()
         {
@@ -495,7 +376,7 @@ namespace Ambulance.Pages
                             Device.BeginInvokeOnMainThread(() =>
                             {
                                 if (webviewMap != null)
-                                    gridOrderActions.Children.Remove(webviewMap);
+                                    slFake.Children.Remove(webviewMap);
                                 webviewMap = null;
                             });
                             if (calcOrder != null)
@@ -519,7 +400,7 @@ namespace Ambulance.Pages
                             HeightRequest = 0,
                             WidthRequest = 0
                         };
-                        Device.BeginInvokeOnMainThread(() => gridOrderActions.Children.Add(webviewMap));
+                        Device.BeginInvokeOnMainThread(() => slFake.Children.Add(webviewMap));
                     }
                 }
             });
@@ -535,7 +416,7 @@ namespace Ambulance.Pages
             Device.BeginInvokeOnMainThread(() =>
             {
                 if (webviewMap != null)
-                    gridOrderActions.Children.Remove(webviewMap);
+                    slFake.Children.Remove(webviewMap);
                 webviewMap = null;
                 RefreshContent();
             });

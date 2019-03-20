@@ -67,7 +67,7 @@ namespace Ambulance.Pages
                     ErrorLB.IsVisible = true;
                 });
                 await Task.Delay(2000);
-                MainPage.Instance?.SwitchToPage(PageType.FreeOrders, false);
+                //MainPage.Instance?.SwitchToPage(PageType.FreeOrders, false);
                 //Navigation.PushAsync(new BoosterMainPage(PageType.FreeOrders));
 
             }

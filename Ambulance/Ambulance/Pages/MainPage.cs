@@ -16,7 +16,7 @@ namespace Ambulance.Pages
     public class MainPage : MasterDetailPage
     {
         MasterPage masterPage;
-		ContentPage curPage;
+		OrdersPage curPage;
         readonly AppBusyPage busyPopup = new AppBusyPage();
 
         public static MainPage Instance { get; private set; }
@@ -28,11 +28,9 @@ namespace Ambulance.Pages
             masterPage.ListView.ItemSelected += OnItemSelected;
             Master = masterPage;
 
-            //curPage = new BoosterMainPage(PageType.BoosterOrders, newOrdersAmount);
-            //Detail = new NavigationPage(curPage) { BarBackgroundColor = Color.Orange };
+            curPage = new OrdersPage(AppData.Crew?.ActiveOrder?.OrderId > 0 ? PageType.ActiveOrder : PageType.FreeOrders);
+            Detail = new NavigationPage(curPage) { BarBackgroundColor = Color.Orange };
 			Instance = this;
-
-            SwitchToPage(pageType, false);
 
             StartRefreshTimer();
         }
@@ -42,6 +40,8 @@ namespace Ambulance.Pages
         int newOrdersAmount;
         void StartRefreshTimer()
         {
+            DependencyService.Get<IAPIHelper>().RequestLocationsPermissions();
+
             if (refreshTimerActive) return;
             refreshTimerActive = true;
             Task.Run(async () =>
@@ -49,32 +49,57 @@ namespace Ambulance.Pages
                 while (refreshTimerActive)
                 {
                     await Task.Delay(60000);
+
+                    while (curPage?.IsBusy == true)
+                        await Task.Delay(1000);
+
+                    if (!refreshTimerActive) return;
+                    var currentCoord = DependencyService.Get<IAPIHelper>().GetCurrentLocation();
+                    if (currentCoord != null && currentCoord.Latitude > 1 && currentCoord.Longitude > 1)
+                        await ApiService.UpdateLocation(currentCoord.Latitude, currentCoord.Longitude);
+
+                    while (curPage?.IsBusy == true)
+                        await Task.Delay(1000);
                     AppData.StoreDistances();
 
-                    // Refresh free orders
                     if (!refreshTimerActive) return;
-                    await Task.Run(() => ApiService.GetNewOrders());
+                    await ApiService.GetNewOrders();
+
+                    while (curPage?.IsBusy == true)
+                        await Task.Delay(1000);
+
                     if (!refreshTimerActive) return;
-                    if (AppData.Crew.ActiveOrder?.OrderId > 0)
-                        AppData.Crew.ActiveOrder = await ApiService.GetOrderDetails(AppData.Crew.ActiveOrder.OrderId);
+                    await ApiService.GetActiveOrder();
 
                     newOrdersAmount += AppData.RestoreDistances();
+
+                    while (curPage?.IsBusy == true)
+                        await Task.Delay(1000);
+
                     Device.BeginInvokeOnMainThread(() =>
                     {
                         if (!(curPage is OrdersPage page)) return;
-                        if (page.PageType == PageType.ActiveOrder && (AppData.Crew.ActiveOrder?.Status ?? OrderStatus.Cancelled) == OrderStatus.Cancelled)
+                        if (page.PageType == PageType.ActiveOrder)
                         {
-                            page.CalcDistance = false;
-                            SwitchToPage(PageType.FreeOrders, false);
+                            if ((AppData.Crew.ActiveOrder?.Status ?? OrderStatus.Cancelled) == OrderStatus.Cancelled)
+                            {
+                                curPage.PageType = PageType.FreeOrders;
+                            }
+                            else if (newOrdersAmount > 0)
+                                page.SetAlertNewOrders(newOrdersAmount);
                         }
-                        else if (page.PageType == PageType.ActiveOrder && newOrdersAmount > 0)
-                            page.SetAlertNewOrders(newOrdersAmount);
-                        else if (page?.PageType == PageType.FreeOrders)
+                        else if (page.PageType == PageType.FreeOrders)
                         {
-                            if (newOrdersAmount > 0)
+                            if ((AppData.Crew.ActiveOrder?.Status ?? OrderStatus.Cancelled) < OrderStatus.Cancelled)
+                            {
+                                curPage.PageType = PageType.ActiveOrder;
+                            }
+                            else if (newOrdersAmount > 0)
+                            {
                                 DependencyService.Get<IAPIHelper>().PlayAlertSound();
-                            page.RefreshContent();
-                            newOrdersAmount = 0;
+                                page.RefreshContent();
+                                newOrdersAmount = 0;
+                            }
                         }
                     });
                 }
@@ -99,60 +124,31 @@ namespace Ambulance.Pages
                 App.Instance.MainPage = new AuthorizationPage();
                 return;
             }
-			SwitchToItem(item, true);
+			SwitchToItem(item);
         }
 
-        async void SwitchToItem(MasterPageItem item, bool refresh)
+        void SwitchToItem(MasterPageItem item)
         {
             if (item == null) return;
+            if (item.TargetType != typeof(OrdersPage)) return;
 
-            //if (item.TargetType != typeof(BoosterMainPage)) return;
-
-            curPage = null;
-            string res = null;
-
-            if (refresh)
+            if (curPage == null)
             {
-                await Detail.Navigation.PushPopupAsync(busyPopup, true);
-                AppData.StoreDistances();
-                switch (item.Pagetype)
-                {
-                    case PageType.FreeOrders:
-                        App.ClearTestLog();
-                        res = await Task.Run(() => ApiService.GetNewOrders());
-                        await App.ShowTestLog(this);
-                        break;
-                    case PageType.ActiveOrder:
-                        App.ClearTestLog();
-                        AppData.Crew.ActiveOrder = await Task.Run(() => ApiService.GetOrderDetails(AppData.Crew.ActiveOrder.OrderId));
-                        await App.ShowTestLog(this);
-                        break;
-                }
-                AppData.RestoreDistances();
+                curPage = new OrdersPage(item.Pagetype);
+                Detail = new NavigationPage(curPage) { BarBackgroundColor = Color.Orange };
             }
-
-            curPage = new OrdersPage(item.Pagetype);
-            Detail = new NavigationPage(curPage) { BarBackgroundColor = Color.Orange };
+            else
+                curPage.PageType = item.Pagetype;
             masterPage.ListView.SelectedItem = null;
             IsPresented = false;
             Device.BeginInvokeOnMainThread(async () =>
             {
                 await Task.Delay(50);
                 if (PopupNavigation.Instance.PopupStack.Count > 0)
-                    PopupNavigation.Instance.PopAllAsync();
+                    await PopupNavigation.Instance.PopAllAsync();
                 /*if (Detail.Navigation.NavigationStack.Count > 0)
-                    Detail.Navigation.PopAllPopupAsync();*/
+                    await Detail.Navigation.PopAllPopupAsync();*/
             });
-		}
-
-		public void SwitchToPage(PageType pageType, bool refresh, Order selectedOrder = null)
-		{
-			SwitchToItem(new MasterPageItem
-			{
-				TargetType = typeof(OrdersPage),
-				Title = OrdersPage.TitleByPageType(pageType),
-                Pagetype = pageType
-            }, refresh);
 		}
     }
 }

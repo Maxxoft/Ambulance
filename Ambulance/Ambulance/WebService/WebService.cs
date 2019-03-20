@@ -66,6 +66,7 @@ namespace Ambulance.WebService
         public int CrewAcriveOrder { get; set; }
         public List<ApiOrder> Order { get; set; }
         public List<List<ApiOrder>> Orders { get; set; }
+        public int OrderNumber { get; set; }
 
         public bool BoolResult { get; set; }
         public string Request { get; set; }
@@ -82,6 +83,8 @@ namespace Ambulance.WebService
         OrderDetails,
         [ApiCommand("vCMD=vAllOrdersWithState0", 0)]
         NewOrders,
+        [ApiCommand("vCMD=ActiveOrder", 0)]
+        ActiveOrder,
         [ApiCommand("vCMD=AutoPositionUpdate&AutoLat={0}&AutoLng={1}", 2)]
         UpdateLocation,
         [ApiCommand("vCMD=OrderStatusUpdate&OrderID={0}&OrderStatus={1}", 2)]
@@ -307,6 +310,17 @@ namespace Ambulance.WebService
             {
                 return MSG_ERROR_INCORRECT_RESPONSE;
             }
+        }
+
+        public static async Task<bool> GetActiveOrder()
+        {
+            var res = await ExecuteCommand(ApiCommand.ActiveOrder, new string[] { });
+            if (!res.BoolResult) return false;
+            if (res.OrderNumber > 0)
+                AppData.Crew.ActiveOrder = await GetOrderDetails(res.OrderNumber);
+            else
+                AppData.Crew.ActiveOrder = null;
+            return AppData.Crew.ActiveOrder != null;
         }
 
         public static async Task<bool> UpdateLocation(double lat, double lng)
