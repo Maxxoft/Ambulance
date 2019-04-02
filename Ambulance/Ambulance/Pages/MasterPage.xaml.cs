@@ -15,13 +15,13 @@ namespace Ambulance.Pages
 
             var masterPageItems = new List<MasterPageItem>();
 
-            masterPageItems.Add(new MasterPageItem
+            /*masterPageItems.Add(new MasterPageItem
             {
                 Title = "Новые заказы",
                 IconSource = "",
                 TargetType = typeof(OrdersPage),
                 Pagetype = PageType.FreeOrders
-            });
+            });*/
             masterPageItems.Add(new MasterPageItem
             {
                 Title = "Активный заказ",

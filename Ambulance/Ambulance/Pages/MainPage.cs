@@ -17,7 +17,7 @@ namespace Ambulance.Pages
     {
         MasterPage masterPage;
 		OrdersPage curPage;
-        readonly AppBusyPage busyPopup = new AppBusyPage();
+        //readonly AppBusyPage busyPopup = new AppBusyPage();
 
         public static MainPage Instance { get; private set; }
 
@@ -28,7 +28,8 @@ namespace Ambulance.Pages
             masterPage.ListView.ItemSelected += OnItemSelected;
             Master = masterPage;
 
-            curPage = new OrdersPage(AppData.Crew?.ActiveOrder?.OrderId > 0 ? PageType.ActiveOrder : PageType.FreeOrders);
+            //curPage = new OrdersPage(AppData.Crew?.ActiveOrder?.OrderId > 0 ? PageType.ActiveOrder : PageType.FreeOrders);
+            curPage = new OrdersPage(PageType.ActiveOrder);
             Detail = new NavigationPage(curPage) { BarBackgroundColor = Color.Orange };
 			Instance = this;
 
@@ -37,7 +38,8 @@ namespace Ambulance.Pages
 
 
         bool refreshTimerActive;
-        int newOrdersAmount;
+        //int newOrdersAmount;
+        Order oldActiveOrder;
         void StartRefreshTimer()
         {
             DependencyService.Get<IAPIHelper>().RequestLocationsPermissions();
@@ -62,21 +64,35 @@ namespace Ambulance.Pages
                         await Task.Delay(1000);
                     AppData.StoreDistances();
 
-                    if (!refreshTimerActive) return;
-                    await ApiService.GetNewOrders();
+                    //if (!refreshTimerActive) return;
+                    //await ApiService.GetNewOrders();
 
                     while (curPage?.IsBusy == true)
                         await Task.Delay(1000);
 
+                    oldActiveOrder = null;
+                    if (AppData.Crew.ActiveOrder != null)
+                        oldActiveOrder = new Order
+                        {
+                            OrderId = AppData.Crew.ActiveOrder.OrderId,
+                            Status = AppData.Crew.ActiveOrder.Status
+                        };
                     if (!refreshTimerActive) return;
                     await ApiService.GetActiveOrder();
 
-                    newOrdersAmount += AppData.RestoreDistances();
+                    //newOrdersAmount += AppData.RestoreDistances();
+                    AppData.RestoreDistances();
 
                     while (curPage?.IsBusy == true)
                         await Task.Delay(1000);
 
                     Device.BeginInvokeOnMainThread(() =>
+                    {
+                        if (!(curPage is OrdersPage page)) return;
+                        page.NotifyActiveOrder(oldActiveOrder);
+                    });
+
+                    /*Device.BeginInvokeOnMainThread(() =>
                     {
                         if (!(curPage is OrdersPage page)) return;
                         if (page.PageType == PageType.ActiveOrder)
@@ -101,7 +117,7 @@ namespace Ambulance.Pages
                                 newOrdersAmount = 0;
                             }
                         }
-                    });
+                    });*/
                 }
             });
         }

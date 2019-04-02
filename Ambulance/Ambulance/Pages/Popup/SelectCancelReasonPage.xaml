@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Popup:PopupPage xmlns="http://xamarin.com/schemas/2014/forms" 
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" 
+    x:Class="Ambulance.Pages.Popup.SelectCancelReasonPage"
+    xmlns:Popup="clr-namespace:Rg.Plugins.Popup.Pages;assembly=Rg.Plugins.Popup"
+    xmlns:ExtendedControls="clr-namespace:Ambulance.ExtendedControls">
+    <Grid HorizontalOptions="Center" VerticalOptions="CenterAndExpand" WidthRequest="300" HeightRequest="500" Padding="5,5,5,5" BackgroundColor="{StaticResource ColoredPanel}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="40"/>
+        </Grid.RowDefinitions>
+        <Label x:Name="lbTitle" Text="Выбор причины отказа" HorizontalOptions="Center" Style="{StaticResource BoldTitleLabel}"/>
+        <ListView x:Name="lvReasons" Grid.Row="1">
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <TextCell Text="{Binding Name}" TextColor="Black"/>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+        <ExtendedControls:BeautifulOrangeButton x:Name="btnAccept" Grid.Row="2" Text="Выбрать" HorizontalOptions="Fill" Style="{StaticResource buttonStyle}" Margin="10,5,10,5"/>
+        <ExtendedControls:BeautifulOrangeButton x:Name="btnCancel" Grid.Row="3" Text="Выбрать" HorizontalOptions="Fill" Style="{StaticResource buttonStyle}" Margin="10,5,10,5"/>
+    </Grid>
+</Popup:PopupPage>

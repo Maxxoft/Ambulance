@@ -20,7 +20,7 @@
 
     <StackLayout VerticalOptions="CenterAndExpand" HorizontalOptions="CenterAndExpand" x:Name ="slContent">
         <StackLayout x:Name ="slMain" BackgroundColor="{StaticResource ColoredPanel}">
-            <ActivityIndicator HeightRequest="100" WidthRequest="100" IsRunning="True" Color="Orange"/>
+            <ActivityIndicator x:Name="activityIndicator" HeightRequest="100" WidthRequest="100" IsRunning="False" Color="Orange"/>
             <Label x:Name="lblInfoText" HorizontalOptions="Center" HorizontalTextAlignment="Center" FontSize="Medium" FontAttributes="Bold" Margin="5,5,5,5"/>
         </StackLayout>
     </StackLayout>

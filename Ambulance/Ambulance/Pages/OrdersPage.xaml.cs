@@ -3,6 +3,7 @@ using Ambulance.Dependency;
 using Ambulance.ExtendedControls;
 using Ambulance.Helper;
 using Ambulance.ObjectModel;
+using Ambulance.Pages.Popup;
 using Ambulance.WebService;
 using Rg.Plugins.Popup.Services;
 using System;
@@ -67,7 +68,9 @@ namespace Ambulance.Pages
             InitializeComponent();
             _pageType = pageType;
 
-            btnSwitch.Clicked += BtnSwitch_Clicked;
+            //btnSwitch.Clicked += BtnSwitch_Clicked;
+            //btnSwitch.IsVisible = false;
+            swOnline.Toggled += Online_Toggled;
             tableOrders.ItemSelected += OrdersTable_ItemSelected;
             btnRefresh.Clicked += BtnRefresh_Clicked;
             btnCall.Clicked += BtnCall_Clicked;
@@ -83,7 +86,6 @@ namespace Ambulance.Pages
             StartCalcDistances();
         }
 
-        
         List<Order> curOrders;
         Order selectedOrder;
         int selectedOrderId;
@@ -98,14 +100,18 @@ namespace Ambulance.Pages
                     curOrders = new List<Order>();
                     if (AppData.Crew.ActiveOrder != null)
                         curOrders.Add(AppData.Crew.ActiveOrder);
-                    btnSwitch.Text = string.Format("НОВЫЕ ЗАКАЗЫ ({0})", AppData.Orders?.Count ?? 0);
+                    //btnSwitch.Text = string.Format("НОВЫЕ ЗАКАЗЫ ({0})", AppData.Orders?.Count ?? 0);
                 }
                 else if (PageType == PageType.FreeOrders)
                 {
                     curOrders = AppData.Orders.OrderBy(x => x.ArrivalDate).ToList();
-                    btnSwitch.Text = string.Format("АКТИВНЫЕ ЗАКАЗЫ ({0})", AppData.Crew.ActiveOrder == null ? 0 : 1);
+                    //btnSwitch.Text = string.Format("АКТИВНЫЕ ЗАКАЗЫ ({0})", AppData.Crew.ActiveOrder == null ? 0 : 1);
                 }
 
+                swOnlineHandling = false;
+                swOnline.IsToggled = AppData.Crew?.Online ?? false;
+                lbOnline.Text = (AppData.Crew?.Online ?? false) ? "Текущий Статус: \"НА ЛИНИИ\"" : "Текущий Статус: \"ЗАНЯТ\"";
+                swOnlineHandling = true;
                 selectedOrder = null;
                 var ordersEmpty = curOrders.Count == 0;
                 if (!ordersEmpty)
@@ -154,6 +160,42 @@ namespace Ambulance.Pages
             return ov;
         }
 
+        bool swOnlineHandling;
+        private async void Online_Toggled(object sender, ToggledEventArgs e)
+        {
+            if (!swOnlineHandling) return;
+
+            var s = "Установить статус \"НА ЛИНИИ\"?";
+            if (!e.Value)
+                s = "Установить статус \"ЗАНЯТ\"?";
+            var res = await DisplayAlert("Подтверждение", s, "OK", "Отмена");
+            if (res)
+            {
+                App.ClearTestLog();
+                AppBusyPage.Show("Изменение статуса...");
+                var r = await ApiService.SetCrewState(e.Value);
+                AppBusyPage.Close();
+                await App.ShowTestLog(this);
+                if (!string.IsNullOrEmpty(r))
+                {
+                    await DisplayAlert("Ошибка", r, "OK");
+                    res = false;
+                }
+            }
+            if (!res)
+            {
+                swOnlineHandling = false;
+                swOnline.IsToggled = !e.Value;
+                swOnlineHandling = true;
+            }
+            else
+            {
+                AppData.Crew.Online = e.Value;
+                lbOnline.Text = (AppData.Crew?.Online ?? false) ? "Текущий Статус: \"НА ЛИНИИ\"" : "Текущий Статус: \"ЗАНЯТ\"";
+                AppData.Save();
+            }
+        }
+
         private void BtnOpenNavigator_Clicked(object sender, EventArgs e)
         {
             DependencyService.Get<INavigatorHelper>().OpenNavigatorWithMultiRoute(selectedOrder);
@@ -164,9 +206,29 @@ namespace Ambulance.Pages
         {
             bool alert = newOrdersAmount < amount;
             newOrdersAmount = amount;
-            btnSwitch.Text = string.Format("НОВЫЕ ЗАКАЗЫ ({0})", AppData.Orders?.Count ?? 0);
-            btnSwitch.Color = newOrdersAmount > 0 ? Color.Green : Color.Orange;
+            //btnSwitch.Text = string.Format("НОВЫЕ ЗАКАЗЫ ({0})", AppData.Orders?.Count ?? 0);
+            //btnSwitch.Color = newOrdersAmount > 0 ? Color.Green : Color.Orange;
             if (alert) DependencyService.Get<IAPIHelper>().PlayAlertSound();
+        }
+
+        public void NotifyActiveOrder(Order oldActiveOrder)
+        {
+            string alert = "";
+            if (oldActiveOrder?.OrderId == null && AppData.Crew.ActiveOrder != null)
+                alert = "Назначен новый заказ!";
+            else if (oldActiveOrder != null)
+            {
+                if ((AppData.Crew.ActiveOrder?.Status ?? OrderStatus.Cancelled) == OrderStatus.Cancelled)
+                    alert = "Активный заказ был отменен на сервере!";
+                else if (oldActiveOrder.Status != AppData.Crew.ActiveOrder.Status)
+                    alert = "Статус активного заказа был изменен на сервере";
+            }
+
+            if (string.IsNullOrEmpty(alert)) return;
+
+            RefreshContent();
+            DependencyService.Get<IAPIHelper>().PlayAlertSound();
+            DisplayAlert("Информация", alert, "ОК");
         }
 
         void BtnSwitch_Clicked(object sender, EventArgs e)
@@ -256,15 +318,28 @@ namespace Ambulance.Pages
             }
         }
 
-        void BtnCancelOrder_Clicked(object sender, EventArgs e)
+        SelectCancelReasonPage reasonPage;
+        private async void BtnCancelOrder_Clicked(object sender, EventArgs e)
         {
-            /*if (selectedOrder == null) return;
+            if (selectedOrder == null) return;
 
-            var ans = await DisplayAlert("", "Отказаться от выполнения заявки?", "Ок", "Отмена");
-            if (!ans) return;
-            var newStatus = OrderStatus.Cancelled;
+            if (reasonPage == null)
+            {
+                reasonPage = new SelectCancelReasonPage();
+                reasonPage.Disappearing += SelectReasonPopup_Disappearing;
+            }
+            await PopupNavigation.Instance.PushAsync(reasonPage, true);
+        }
+
+        async void SelectReasonPopup_Disappearing(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(reasonPage?.SelectedReason))
+                return;
+
             App.ClearTestLog();
-            var res = await ApiService.UpdateOrder(selectedOrder, (int)newStatus);
+            AppBusyPage.Show("Отмена заказа...");
+            var res = await ApiService.CancelOrder(selectedOrder, reasonPage.SelectedReason);
+            AppBusyPage.Close();
             await App.ShowTestLog(this);
             if (!string.IsNullOrEmpty(res))
             {
@@ -272,7 +347,7 @@ namespace Ambulance.Pages
                 return;
             }
             AppData.Crew.ActiveOrder = null;
-            MainPage.Instance?.SwitchToPage(PageType.FreeOrders, true);*/
+            RefreshContent();
         }
 
         private void ResizeTable()
@@ -295,7 +370,7 @@ namespace Ambulance.Pages
             lbDistance.Text = "До пациента: " + selectedOrder.Distance.ToString() + " км";
             lbComment.Text = "Доп. инфо: " + selectedOrder.Comment;
             btnUpdateOrder.Text = OrderHelper.EligibleActionName(selectedOrder.Status);
-            btnCancelOrder.IsVisible = false;
+            btnCancelOrder.IsVisible = (selectedOrder?.Status ?? OrderStatus.Cancelled) != OrderStatus.Cancelled;
         }
 
         private void OrdersTable_ItemSelected(object sender, SelectedItemChangedEventArgs e)

@@ -20,11 +20,16 @@
             <StackLayout HorizontalOptions="Fill" x:Name="MainGrid">
                 <Grid Padding="10,5,10,0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="1.5*"/>
-                        <ColumnDefinition Width="4*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <ExtendedControls:BeautifulOrangeButton x:Name="btnSwitch" Grid.Column="0" Style="{StaticResource buttonStyle}" FontSize="15"/>
+                    <StackLayout Orientation="Horizontal" HorizontalOptions="CenterAndExpand" Spacing="5">
+                        <Label x:Name="lbOnline" Style="{StaticResource TableHeader}"/>
+                        <Switch x:Name="swOnline"/>    
+                    </StackLayout>
+                    
+                    <!--<ExtendedControls:BeautifulOrangeButton x:Name="btnSwitch" Grid.Column="0" Style="{StaticResource buttonStyle}" FontSize="15"/>-->
                     <Label x:Name="lblHeader" Grid.Column="1" HorizontalTextAlignment="Center" Style="{StaticResource BoldTitleLabel}"  Margin="0,15,0,10"/>
                     <ExtendedControls:BeautifulOrangeButton x:Name="btnRefresh" Grid.Column="2" Text="Обновить" Style="{StaticResource buttonStyle}" FontSize="15"/>
                 </Grid>

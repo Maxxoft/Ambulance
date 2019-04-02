@@ -61,7 +61,8 @@ namespace Ambulance.Pages
             AutoLogin();
         }
 
-        bool autoLogin;
+        bool autoLogin, lastOnline;
+        int lastCrewTypeId;
         void AutoLogin()
         {
             if (Settings.AppState.LastPhone > 0 && !string.IsNullOrEmpty(Settings.AppState.LastPin) && Settings.AppState.LastLoginDate.Date == DateTime.Today)
@@ -69,6 +70,8 @@ namespace Ambulance.Pages
                 PhoneTB.Text = PhoneHelper.FormattedPhoneNumber(Settings.AppState.LastPhone.ToString());
                 PassTB.Text = Settings.AppState.LastPin;
                 autoLogin = true;
+                lastOnline = Settings.AppState.LastOnline;
+                lastCrewTypeId = Settings.AppState.LastCrewTypeId;
                 AcceptButton_Clicked(null, null);
             }
         }
@@ -112,24 +115,83 @@ namespace Ambulance.Pages
         async void AcceptButton_Clicked(object sender, EventArgs e)
         {
             AcceptButton.IsEnabled = false;
+
             var phone = PhoneHelper.ValidPhoneNumber(PhoneTB.Text);
             if (phone == 0) return;
 
+            AppBusyPage.Show("Авторизация...");
             App.ClearTestLog();
             var res = await ApiService.Auth(PhoneTB.Text, PassTB.Text);
             await App.ShowTestLog(this);
             if (!string.IsNullOrEmpty(res))
             {
+                AppBusyPage.Close();
+                await DisplayAlert("Ошибка", res, "ОК");
+                AcceptButton.IsEnabled = true;
+                return;
+            }
+            if (autoLogin)
+            {
+                AppData.Crew.Online = lastOnline;
+                AppData.Crew.CrewTypeId = lastCrewTypeId;
+            }
+
+            AppBusyPage.Show("Получение списка типов бригад...");
+            App.ClearTestLog();
+            res = await ApiService.GetCrewTypes();
+            await App.ShowTestLog(this);
+            if (!string.IsNullOrEmpty(res))
+            {
+                AppBusyPage.Close();
                 await DisplayAlert("Ошибка", res, "ОК");
                 AcceptButton.IsEnabled = true;
                 return;
             }
 
+            if ((AppData.CrewTypes?.Count ?? 0) == 0)
+            {
+                AppBusyPage.Close();
+                await DisplayAlert("Ошибка", "Не удалось получить список типов бригад", "ОК");
+                AcceptButton.IsEnabled = true;
+                return;
+            }
+
+            AppBusyPage.Close();
+            sctPage = new SelectCrewTypePage();
+            sctPage.Disappearing += CrewTypePopup_Disappearing;
+            await PopupNavigation.Instance.PushAsync(sctPage, true);
+        }
+
+        private SelectCrewTypePage sctPage;
+        async void CrewTypePopup_Disappearing(object sender, EventArgs e)
+        {
+            if (sctPage.SelectedCrewType?.Id == null)
+            {
+                await DisplayAlert("Ошибка", "Не выбран тип бригады", "ОК");
+                AcceptButton.IsEnabled = true;
+                return;
+            }
+
+            AppBusyPage.Show("Сохранение данных на сервер...");
             App.ClearTestLog();
-            res = await ApiService.GetNewOrders();
+            var res = await ApiService.SetCrewType(sctPage.SelectedCrewType);
             await App.ShowTestLog(this);
             if (!string.IsNullOrEmpty(res))
             {
+                AppBusyPage.Close();
+                await DisplayAlert("Ошибка", res, "ОК");
+                AcceptButton.IsEnabled = true;
+                return;
+            }
+            AppData.Crew.CrewTypeId = sctPage.SelectedCrewType.Id;
+
+            AppBusyPage.Show("Получение активного заказа...");
+            App.ClearTestLog();
+            res = await ApiService.GetActiveOrder();
+            await App.ShowTestLog(this);
+            if (!string.IsNullOrEmpty(res))
+            {
+                AppBusyPage.Close();
                 await DisplayAlert("Ошибка", res, "ОК");
                 AcceptButton.IsEnabled = true;
                 return;
@@ -140,10 +202,13 @@ namespace Ambulance.Pages
             Settings.AppState.LastLoginDate = DateTime.Now;
             Settings.AppState.Save();
 
-            if (AppData.Crew.ActiveOrder != null)
+            AppBusyPage.Close();
+            App.Current.MainPage = new MainPage(PageType.ActiveOrder);
+
+            /*if (AppData.Crew.ActiveOrder != null)
                 App.Current.MainPage = new MainPage(PageType.ActiveOrder);
             else
-                App.Current.MainPage = new MainPage(PageType.FreeOrders);
+                App.Current.MainPage = new MainPage(PageType.FreeOrders);*/
         }
     }
 }

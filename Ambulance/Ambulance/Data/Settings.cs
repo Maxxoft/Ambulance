@@ -51,6 +51,8 @@ namespace Ambulance.Data
             if (settings == null) return;
             try
             {
+                LastOnline = ActiveCrew?.Online ?? false;
+                LastCrewTypeId = ActiveCrew?.CrewTypeId ?? 0;
                 var json = JsonConvert.SerializeObject(this);
                 settings.AddOrUpdateValue("AppState", json);
             }
@@ -64,6 +66,8 @@ namespace Ambulance.Data
         public DateTime LastLoginDate { get; set; }
         public long LastPhone { get; set; }
         public string LastPin { get; set; }
+        public bool LastOnline { get; set; }
+        public int LastCrewTypeId { get; set; }
 
         public Crew ActiveCrew { get; set; }
         public GeoLocation ActiveLocation { get; set; }

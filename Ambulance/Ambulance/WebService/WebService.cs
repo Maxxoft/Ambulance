@@ -54,7 +54,13 @@ namespace Ambulance.WebService
         public string CrewPhone { get; set; }           // телефон медбригады - текст
         public int CrewAcriveOrder { get; set; }        // идентификато активной заявки, число целое
     }
-    
+
+    public class ApiCrewType
+    {
+        public int crewTypeID { get; set; }            
+        public string crewTypeName { get; set; }          
+    }
+
     public class ApiResponse
     {
         public string Result { get; set; }
@@ -66,6 +72,7 @@ namespace Ambulance.WebService
         public int CrewAcriveOrder { get; set; }
         public List<ApiOrder> Order { get; set; }
         public List<List<ApiOrder>> Orders { get; set; }
+        public List<List<ApiCrewType>> CrewTypes { get; set; }
         public int OrderNumber { get; set; }
 
         public bool BoolResult { get; set; }
@@ -88,7 +95,15 @@ namespace Ambulance.WebService
         [ApiCommand("vCMD=AutoPositionUpdate&AutoLat={0}&AutoLng={1}", 2)]
         UpdateLocation,
         [ApiCommand("vCMD=OrderStatusUpdate&OrderID={0}&OrderStatus={1}", 2)]
-        UpdateOrderStatus
+        UpdateOrderStatus,
+        [ApiCommand("vCMD=getCrewTypes", 0)]
+        GetCrewTypes,
+        [ApiCommand("vCMD=setCrewTypeSelect&crewTypeID={0}", 1)]
+        SetCrewType,
+        [ApiCommand("vCMD=OrderCancel&OrderID={0}&OrderCancelComment={1}", 2)]
+        CancelOrder,
+        [ApiCommand("vCMD=setCrewState&StateValue={0}", 1)]
+        SetCrewState
     }
 
     public static class ApiService
@@ -312,15 +327,15 @@ namespace Ambulance.WebService
             }
         }
 
-        public static async Task<bool> GetActiveOrder()
+        public static async Task<string> GetActiveOrder()
         {
             var res = await ExecuteCommand(ApiCommand.ActiveOrder, new string[] { });
-            if (!res.BoolResult) return false;
+            if (!res.BoolResult) return res.ErrorMessage;
             if (res.OrderNumber > 0)
                 AppData.Crew.ActiveOrder = await GetOrderDetails(res.OrderNumber);
             else
                 AppData.Crew.ActiveOrder = null;
-            return AppData.Crew.ActiveOrder != null;
+            return null;
         }
 
         public static async Task<bool> UpdateLocation(double lat, double lng)
@@ -329,11 +344,59 @@ namespace Ambulance.WebService
             return res.BoolResult;
         }
 
+        public static async Task<string> SetCrewState(bool state)
+        {
+            var res = await ExecuteCommand(ApiCommand.SetCrewState, new string[] { (state ? 1 :0).ToString() });
+            return res.BoolResult ? null : res.ErrorMessage;
+        }
+
         public static async Task<string> UpdateOrder(Order order, int newStatus)
         {
             var res = await ExecuteCommand(ApiCommand.UpdateOrderStatus, new string[] { order.OrderId.ToString(), newStatus.ToString() });
             if (res.BoolResult) order.Status = (OrderStatus)newStatus;
             return res.BoolResult ? null : res.ErrorMessage;
+        }
+
+        public static async Task<string> CancelOrder(Order order, string reason)
+        {
+            var res = await ExecuteCommand(ApiCommand.CancelOrder, new string[] { order.OrderId.ToString(), reason });
+            if (res.BoolResult) order.Status = OrderStatus.Cancelled;
+            return res.BoolResult ? null : res.ErrorMessage;
+        }
+
+        public static async Task<string> GetCrewTypes()
+        {
+            var res = await ExecuteCommand(ApiCommand.GetCrewTypes, new string[] { });
+            if (!res.BoolResult) return res.ErrorMessage;
+
+            try
+            {
+                AppData.CrewTypes = new List<CrewType>();
+                if ((res.CrewTypes?.Count ?? 0) > 0 && (res.CrewTypes[0]?.Count ?? 0) > 0)
+                {
+                    foreach (var apiCrewType in res.CrewTypes[0])
+                    {
+                        var crewType = new CrewType
+                        {
+                            Id = apiCrewType.crewTypeID,
+                            Name = apiCrewType.crewTypeName
+                        };
+                        AppData.CrewTypes.Add(crewType);
+                    }
+                }
+                return null;
+            }
+            catch (Exception e)
+            {
+                return MSG_ERROR_INCORRECT_RESPONSE;
+            }
+        }
+
+        public static async Task<string> SetCrewType(CrewType crewType)
+        {
+            var res = await ExecuteCommand(ApiCommand.SetCrewType, new string[] {crewType.Id.ToString() });
+            if (!res.BoolResult) return res.ErrorMessage;
+            return null;
         }
     }
 }

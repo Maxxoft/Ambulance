@@ -8,6 +8,7 @@ namespace Ambulance.Data
 {
     public static class AppData
     {
+        public static List<CrewType> CrewTypes { get; set; }
         public static Crew Crew { get; set; }
         public static List<Order> Orders { get; set; }
 
