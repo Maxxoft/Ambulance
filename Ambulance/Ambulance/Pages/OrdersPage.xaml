@@ -24,9 +24,9 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <StackLayout Orientation="Horizontal" HorizontalOptions="CenterAndExpand" Spacing="5">
+                    <StackLayout x:Name="slOnline" Orientation="Horizontal" HorizontalOptions="Fill" Spacing="5" Padding="5,5,5,5">
                         <Label x:Name="lbOnline" Style="{StaticResource TableHeader}"/>
-                        <Switch x:Name="swOnline"/>    
+                        <Switch x:Name="swOnline"/>
                     </StackLayout>
                     
                     <!--<ExtendedControls:BeautifulOrangeButton x:Name="btnSwitch" Grid.Column="0" Style="{StaticResource buttonStyle}" FontSize="15"/>-->

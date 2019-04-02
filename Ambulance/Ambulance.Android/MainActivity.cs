@@ -201,13 +201,13 @@ namespace Ambulance.Droid
             }
 
 #if DEBUG
-            return new GeoLocation { Latitude = 55.71, Longitude = 37.62 };
+            //return new GeoLocation { Latitude = 55.71, Longitude = 37.62 };
             //res.Latitude = loc?.Latitude ?? 66.1224374113707;
             //res.Longitude = loc?.Longitude ?? 76.6590342846295;
-#else
-			res.Latitude = loc?.Latitude ?? 0;
-			res.Longitude = loc?.Longitude ?? 0;
 #endif
+            res.Latitude = loc?.Latitude ?? 0;
+			res.Longitude = loc?.Longitude ?? 0;
+
             return res;
         }
 
