@@ -19,7 +19,7 @@
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
-        <ExtendedControls:BeautifulOrangeButton x:Name="btnAccept" Grid.Row="2" Text="Выбрать" HorizontalOptions="Fill" Style="{StaticResource buttonStyle}" Margin="10,5,10,5"/>
-        <ExtendedControls:BeautifulOrangeButton x:Name="btnCancel" Grid.Row="3" Text="Выбрать" HorizontalOptions="Fill" Style="{StaticResource buttonStyle}" Margin="10,5,10,5"/>
+        <ExtendedControls:BeautifulGrayButton x:Name="btnAccept" Grid.Row="2" Text="Выбрать" HorizontalOptions="Fill" Style="{StaticResource buttonStyle}" Margin="10,5,10,5"/>
+        <ExtendedControls:BeautifulOrangeButton x:Name="btnCancel" Grid.Row="3" Text="Отмена" HorizontalOptions="Fill" Style="{StaticResource buttonStyle}" Margin="10,5,10,5"/>
     </Grid>
 </Popup:PopupPage>

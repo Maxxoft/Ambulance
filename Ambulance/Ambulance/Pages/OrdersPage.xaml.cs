@@ -71,6 +71,7 @@ namespace Ambulance.Pages
             //btnSwitch.Clicked += BtnSwitch_Clicked;
             //btnSwitch.IsVisible = false;
             swOnline.Toggled += Online_Toggled;
+
             tableOrders.ItemSelected += OrdersTable_ItemSelected;
             btnRefresh.Clicked += BtnRefresh_Clicked;
             btnCall.Clicked += BtnCall_Clicked;
@@ -111,6 +112,7 @@ namespace Ambulance.Pages
                 swOnlineHandling = false;
                 swOnline.IsToggled = AppData.Crew?.Online ?? false;
                 lbOnline.Text = (AppData.Crew?.Online ?? false) ? "Текущий Статус: \"НА ЛИНИИ\"" : "Текущий Статус: \"ЗАНЯТ\"";
+                slOnline.BackgroundColor = (AppData.Crew?.Online ?? false) ? Color.Orange : Color.Gray;
                 swOnlineHandling = true;
                 selectedOrder = null;
                 var ordersEmpty = curOrders.Count == 0;
@@ -192,6 +194,7 @@ namespace Ambulance.Pages
             {
                 AppData.Crew.Online = e.Value;
                 lbOnline.Text = (AppData.Crew?.Online ?? false) ? "Текущий Статус: \"НА ЛИНИИ\"" : "Текущий Статус: \"ЗАНЯТ\"";
+                slOnline.BackgroundColor = (AppData.Crew?.Online ?? false) ? Color.Orange : Color.Gray;
                 AppData.Save();
             }
         }
@@ -360,7 +363,7 @@ namespace Ambulance.Pages
         private void SetDetailInfo()
         {
             gridOrderDetails.IsVisible = selectedOrder != null;
-            gridOrderActions.IsVisible = selectedOrder != null;
+            gridOrderActions.IsVisible = (selectedOrder?.Status ?? OrderStatus.Cancelled) != OrderStatus.Cancelled;
             if (selectedOrder == null) return;
             lbPatient.Text = "Пациент: " + selectedOrder.SickName + ", " + selectedOrder.SickPhone;
             lbOrder.Text = "№ Заказа: " + selectedOrder.OrderId.ToString();
@@ -370,6 +373,7 @@ namespace Ambulance.Pages
             lbDistance.Text = "До пациента: " + selectedOrder.Distance.ToString() + " км";
             lbComment.Text = "Доп. инфо: " + selectedOrder.Comment;
             btnUpdateOrder.Text = OrderHelper.EligibleActionName(selectedOrder.Status);
+            btnUpdateOrder.IsVisible = (selectedOrder?.Status ?? OrderStatus.Cancelled) != OrderStatus.Cancelled;
             btnCancelOrder.IsVisible = (selectedOrder?.Status ?? OrderStatus.Cancelled) != OrderStatus.Cancelled;
         }
 
