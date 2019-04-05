@@ -13,18 +13,23 @@ using System.Net;
 using Plugin.Permissions;
 using Android.Content;
 using Ambulance.ObjectModel;
+using Android;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Ambulance.Droid
 {
     [Activity(Label = "Ambulance", Icon = "@drawable/app_icon", Theme = "@style/MyTheme",
         MainLauncher = true, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation, ScreenOrientation = ScreenOrientation.Landscape)]
 
-    public class MainActivity : global::Xamarin.Forms.Platform.Android.FormsAppCompatActivity
+    public class MainActivity : global::Xamarin.Forms.Platform.Android.FormsAppCompatActivity, ILocationListener
     {
         public static MainActivity Instance { get; private set; }
         public static string AppVersion { get; private set; }
 
-        private static LocationManager LocManager;
+        LocationManager locManager;
+        string locProvider;
         //private static AssetManager AccesMgr;
 
         protected override void OnCreate(Bundle bundle)
@@ -40,7 +45,7 @@ namespace Ambulance.Droid
             //IsPlayServicesAvailable();
             try
             {
-                LocManager = (LocationManager)GetSystemService(LocationService);
+                //LocManager = (LocationManager)GetSystemService(LocationService);
                 //TelephonyManager mTelephonyMgr = (TelephonyManager)GetSystemService(TelephonyService);
                 //StaticDeviceInfo.PhoneNumber = mTelephonyMgr.Line1Number;				
             }
@@ -68,12 +73,6 @@ namespace Ambulance.Droid
         {
             var dp = (int)((pixelValue) / Resources.DisplayMetrics.Density);
             return dp;
-        }
-
-        public override void OnRequestPermissionsResult(int requestCode, string[] permissions, Permission[] grantResults)
-        {
-            PermissionsImplementation.Current.OnRequestPermissionsResult(requestCode, permissions, grantResults);
-            base.OnRequestPermissionsResult(requestCode, permissions, grantResults);
         }
 
         public void SetNotificationSetting()
@@ -107,109 +106,181 @@ namespace Ambulance.Droid
             return alert;
         }
 
-        /*public static Location GetCurrentLocation()
-        {			
-            Location res = null;
-            try
-            {
-                //if (LocManager == null) LocManager = (LocationManager)GetSystemService(LocationService);
-                res = LocManager.GetLastKnownLocation(LocationManager.NetworkProvider);
-            }
-            catch (Exception e)
-            {
-				res = new Location("")
-				{
-					Latitude = 55.765182,
-					Longitude = 37.591689
-				};               
-            }
-            return res;
-        }*/
-
-        static readonly string[] PermissionsLocation =
+        #region LOCATIONS
+        public int CurrentLocationAccuracy = int.MaxValue;
+        public static GeoLocation curLocation = new GeoLocation
         {
-            Android.Manifest.Permission.AccessCoarseLocation,
-            Android.Manifest.Permission.AccessFineLocation
+
+#if DEBUG
+            RequestAmount = 0,
+            //  Latitude = 55.75,
+            // Longitude = 37.61
+#else
+            RequestAmount = 0,
+			Latitude = 0,
+			Longitude = 0
+#endif
         };
-        static readonly int RequestLocationId = 0;
 
-        /*async Task GetLocationPermissionAsync()
-		{
-			//Check to see if any permission in our group is available, if one, then all are
-			const string permission = Android.Manifest.Permission.AccessFineLocation;
-			if (CheckSelfPermission(permission) == (int)Permission.Granted)
-			{
-				await GetLocationAsync();
-				return;
-			}
 
-			//need to request permission
-			if (ShouldShowRequestPermissionRationale(permission))
-			{
-				//Explain to the user why we need to read the contacts
-				Snackbar.Make(layout, "Location access is required to show coffee shops nearby.", Snackbar.LengthIndefinite)
-						.SetAction("OK", v => RequestPermissions(PermissionsLocation, RequestLocationId))
-						.Show();
-				return;
-			}
-			//Finally request permissions with the list of permissions and Id
-			RequestPermissions(PermissionsLocation, RequestLocationId);
-		}*/
+        static readonly int LocationPermissions = 1;
+        public bool? LocationPermissionsGranted, CameraPermissionsGranted, GalleryPermissionsGranted;
 
-        public static void RequestLocationPermissions()
+        public void RequestLocationPermissions()
         {
             if ((int)Build.VERSION.SdkInt >= 23)
             {
-                if (Instance?.CheckSelfPermission(Android.Manifest.Permission.AccessCoarseLocation) != (int)Permission.Granted ||
-                    Instance?.CheckSelfPermission(Android.Manifest.Permission.AccessFineLocation) != (int)Permission.Granted)
+                if (CheckSelfPermission(Manifest.Permission.AccessCoarseLocation) != (int)Android.Content.PM.Permission.Granted ||
+                    CheckSelfPermission(Manifest.Permission.AccessFineLocation) != (int)Android.Content.PM.Permission.Granted)
                 {
-                    Instance?.RequestPermissions(PermissionsLocation, RequestLocationId);
+                    string[] perms =
+                    {
+                        Manifest.Permission.AccessCoarseLocation,
+                        Manifest.Permission.AccessFineLocation
+                    };
+                    Instance?.RequestPermissions(perms, LocationPermissions);
+                    return;
                 }
+                LocationPermissionsGranted = true;
+                return;
+            }
+            LocationPermissionsGranted = true;
+        }
+
+        public override void OnRequestPermissionsResult(int requestCode, string[] permissions, Android.Content.PM.Permission[] grantResults)
+        {
+            PermissionsImplementation.Current.OnRequestPermissionsResult(requestCode, permissions, grantResults);
+            if (requestCode == LocationPermissions)
+            {
+                LocationPermissionsGranted = grantResults != null && grantResults.Length > 0 && grantResults[0] == Android.Content.PM.Permission.Granted;
+            }
+        }
+
+        public static List<string> GetLocationProviders()
+        {
+            Instance.locManager = (LocationManager)Instance.GetSystemService(LocationService);
+            var providers = Instance.locManager.GetProviders(true);
+            var res = new List<string>();
+            foreach (var p in providers) res.Add(p);
+            // gps / network / passive
+            return res.OrderBy(x => x).ToList();
+        }
+
+        //ILocationListener locListener;
+        public static async void RequestLocation(string provider)
+        {
+            if (Instance.locManager != null) return;
+            //return;
+            var locManager = (LocationManager)Instance.GetSystemService(LocationService);
+            Instance.locManager = locManager;
+            while (true)
+            {
+                try
+                {
+                    //    if (ContextCompat.CheckSelfPermission(Instance, Manifest.Permission.AccessFineLocation) != Permission.Granted)
+                    //        ActivityCompat.RequestPermissions(Instance, new String[] { Manifest.Permission.AccessFineLocation }, 1);
+
+                    if (Instance.locManager == null) break;
+                    Instance.RunOnUiThread(() =>
+                    {
+                        try
+                        {
+                            locManager.RequestSingleUpdate(LocationManager.NetworkProvider, Instance, null);
+                            locManager.RequestSingleUpdate(LocationManager.GpsProvider, Instance, null);
+                            locManager.RequestSingleUpdate(LocationManager.PassiveProvider, Instance, null);
+                        }
+                        catch { }
+                    });
+                }
+                catch (Exception ex)
+                {
+
+                }
+                await Task.Delay(2000);
+            }
+
+            return;
+
+        }
+
+        public static void StopRequestLocation()
+        {
+            System.Diagnostics.Debug.WriteLine("StopRequestLocation: ");
+            if (Instance?.locManager != null)
+            {
+                Instance.locManager.RemoveUpdates(Instance);
+                Instance.locManager = null;
+                //curLocation.Provider = string.Empty;
+                //curLocation.RequestAmount = 0;
             }
         }
 
         public static GeoLocation GetCurrentLocation()
         {
-            LocManager = (LocationManager)Instance.GetSystemService(Context.LocationService);
+            //System.Diagnostics.Debug.WriteLine("GetCurrentLocation: ");
+            return curLocation;
+        }
 
-            GeoLocation res = new GeoLocation();
-            res.Error = string.Empty;
-
-            Location loc = null;
+        public GeoLocation GetLastKnownLocation()
+        {
             try
             {
-                loc = LocManager?.GetLastKnownLocation(LocationManager.NetworkProvider);
-            }
-            catch (Exception ex)
-            {
-                res.Error = "Network: " + ex.Message;
-            }
+                if (curLocation.RequestAmount > 0)
+                    return curLocation;
 
-            if (loc == null || Math.Abs(loc.Latitude) < 0.1 || Math.Abs(loc.Longitude) < 0.1)
-            {
-                try
-                {
-                    loc = LocManager?.GetLastKnownLocation(LocationManager.GpsProvider);
-                }
-                catch (Exception ex)
-                {
-                    if (string.IsNullOrEmpty(res.Error))
-                        res.Error = "GPS: " + ex.Message;
-                    else
-                        res.Error = res.Error + " && GPS: " + ex.Message;
-                }
+                var locManager = (LocationManager)Instance.GetSystemService(LocationService);
+                var res = locManager.GetLastKnownLocation(LocationManager.GpsProvider);
+                var res2 = locManager.GetLastKnownLocation(LocationManager.NetworkProvider);
+                var res3 = locManager.GetLastKnownLocation(LocationManager.PassiveProvider);
+                if (res != null)
+                    return new GeoLocation(res.Latitude, res.Longitude);
+                else
+                  if (res2 != null)
+                    return new GeoLocation(res2.Latitude, res2.Longitude);
+                else
+                  if (res3 != null)
+                    return new GeoLocation(res3.Latitude, res3.Longitude);
             }
+            catch { }
 
-#if DEBUG
-            //return new GeoLocation { Latitude = 55.71, Longitude = 37.62 };
-            //res.Latitude = loc?.Latitude ?? 66.1224374113707;
-            //res.Longitude = loc?.Longitude ?? 76.6590342846295;
-#endif
-            res.Latitude = loc?.Latitude ?? 0;
-			res.Longitude = loc?.Longitude ?? 0;
-
-            return res;
+            return curLocation;
         }
+
+        public void OnLocationChanged(Location location)
+        {
+            System.Diagnostics.Debug.WriteLine("OnLocationChanged: " + Instance.locProvider);
+            if (curLocation.RequestAmount == 0)
+                curLocation.FirstResponseDate = DateTime.Now;
+            curLocation.RequestAmount++;
+            if (location.Accuracy < CurrentLocationAccuracy && location != null && location.Latitude > 0 && location.Longitude > 0)
+            {
+                curLocation.Latitude = location.Latitude;
+                curLocation.Longitude = location.Longitude;
+                curLocation.LastResponseDate = DateTime.Now;
+            }
+            /*  if (location != null && location.Latitude > 0 && location.Longitude > 0)
+              {
+                  curLocation.Latitude = location.Latitude;
+                  curLocation.Longitude = location.Longitude;
+                  curLocation.LastResponseDate = DateTime.Now;
+              }*/
+            else
+                curLocation.Error = "Provider " + curLocation.Provider ?? "" + " returned nothing";
+        }
+
+        public void OnProviderDisabled(string provider)
+        {
+            if (locProvider == provider)
+                locManager?.RemoveUpdates(this);
+        }
+
+        public void OnProviderEnabled(string provider)
+        {
+            //if (locProvider == provider)
+            //    locManager?.RequestLocationUpdates(locProvider, 0, 0, this);
+        }
+
+        #endregion
 
         private static bool CertificateValidationCallBack(
              object sender,
@@ -258,6 +329,11 @@ namespace Ambulance.Droid
                 // In all other cases, return false.
                 return false;
             }
+        }
+
+        public void OnStatusChanged(string provider, [GeneratedEnum] Availability status, Bundle extras)
+        {
+            //
         }
 
         /*public void IsPlayServicesAvailable()

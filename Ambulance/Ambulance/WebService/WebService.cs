@@ -74,6 +74,7 @@ namespace Ambulance.WebService
         public List<List<ApiOrder>> Orders { get; set; }
         public List<List<ApiCrewType>> CrewTypes { get; set; }
         public int OrderNumber { get; set; }
+        public int CrewState { get; set; }
 
         public bool BoolResult { get; set; }
         public string Request { get; set; }
@@ -246,6 +247,7 @@ namespace Ambulance.WebService
                 return MSG_ERROR_INCORRECT_RESPONSE;
             crew.Name = res.CrewName;
             crew.Phone = res.CrewPhone;
+            crew.Online = res.CrewState > 0;
             if (res.CrewAcriveOrder > 0)
             {
                 crew.ActiveOrder = await GetOrderDetails(res.CrewAcriveOrder);
