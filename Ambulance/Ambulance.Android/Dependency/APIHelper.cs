@@ -12,6 +12,8 @@ namespace Ambulance.Droid
 {
 	public class APIHelper: IAPIHelper
 	{
+        public bool? RequestResult { get; set; } = null;
+
         public void ClearCookies()
         {
             throw new NotImplementedException();
@@ -38,13 +40,13 @@ namespace Ambulance.Droid
         }
 
         public GeoLocation GetLastKnownLocation()
-		{
-			return MainActivity.GetCurrentLocation();
-		}
+        {
+            return MainActivity.Instance.GetLastKnownLocation();
+        }
 
         public List<string> GetLocationProviders()
         {
-            throw new NotImplementedException();
+            return MainActivity.GetLocationProviders();
         }
 
         public void PlayAlertSound()
@@ -57,26 +59,25 @@ namespace Ambulance.Droid
 			player.Start();           
         }
 
-        public void RequestLocation(string provider = "")
-        {
-            throw new NotImplementedException();
-        }
-
         public async Task<bool> RequestLocationsPermissions()
-		{
-			MainActivity.RequestLocationPermissions();
-            return true;
-		}
+        {
+            MainActivity.Instance.RequestLocationPermissions();
+            while (MainActivity.Instance.LocationPermissionsGranted == null)
+            {
+                await Task.Delay(50);
+            }
+            return MainActivity.Instance.LocationPermissionsGranted == true;
+        }
 
         public void StartRequestLocation(string provider = "")
         {
-            throw new NotImplementedException();
+            MainActivity.RequestLocation(provider);
         }
 
         public void StopRequestLocation()
         {
-            throw new NotImplementedException();
+            MainActivity.StopRequestLocation();
         }
-        
+
     }
 }

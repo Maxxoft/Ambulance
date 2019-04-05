@@ -42,7 +42,6 @@ namespace Ambulance.Pages
         Order oldActiveOrder;
         void StartRefreshTimer()
         {
-            DependencyService.Get<IAPIHelper>().RequestLocationsPermissions();
 
             if (refreshTimerActive) return;
             refreshTimerActive = true;
@@ -50,7 +49,9 @@ namespace Ambulance.Pages
             {
                 while (refreshTimerActive)
                 {
+                    DependencyService.Get<IAPIHelper>().StartRequestLocation();
                     await Task.Delay(60000);
+                    
 
                     while (curPage?.IsBusy == true)
                         await Task.Delay(1000);

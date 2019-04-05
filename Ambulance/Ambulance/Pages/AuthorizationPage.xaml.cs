@@ -132,7 +132,7 @@ namespace Ambulance.Pages
             }
             if (autoLogin)
             {
-                AppData.Crew.Online = lastOnline;
+                //AppData.Crew.Online = lastOnline;
                 AppData.Crew.CrewTypeId = lastCrewTypeId;
             }
 

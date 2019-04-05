@@ -91,7 +91,7 @@ namespace Ambulance.Pages
         Order selectedOrder;
         int selectedOrderId;
 
-        public void RefreshContent()
+        public async void RefreshContent()
         {
             try
             {
@@ -140,6 +140,8 @@ namespace Ambulance.Pages
                 SetDetailInfo();
                 ResizeTable();
                 HighlightItems();
+
+                await DependencyService.Get<IAPIHelper>().RequestLocationsPermissions();
             }
             finally
             {
@@ -221,7 +223,7 @@ namespace Ambulance.Pages
                 alert = "Назначен новый заказ!";
             else if (oldActiveOrder != null)
             {
-                if ((AppData.Crew.ActiveOrder?.Status ?? OrderStatus.Cancelled) == OrderStatus.Cancelled)
+                if (AppData.Crew.ActiveOrder == null)
                     alert = "Активный заказ был отменен на сервере!";
                 else if (oldActiveOrder.Status != AppData.Crew.ActiveOrder.Status)
                     alert = "Статус активного заказа был изменен на сервере";
@@ -373,8 +375,8 @@ namespace Ambulance.Pages
             lbDistance.Text = "До пациента: " + selectedOrder.Distance.ToString() + " км";
             lbComment.Text = "Доп. инфо: " + selectedOrder.Comment;
             btnUpdateOrder.Text = OrderHelper.EligibleActionName(selectedOrder.Status);
-            btnUpdateOrder.IsVisible = (selectedOrder?.Status ?? OrderStatus.Cancelled) != OrderStatus.Cancelled;
-            btnCancelOrder.IsVisible = (selectedOrder?.Status ?? OrderStatus.Cancelled) != OrderStatus.Cancelled;
+            btnUpdateOrder.IsVisible = (selectedOrder?.Status ?? OrderStatus.Cancelled) < OrderStatus.Cancelled;
+            btnCancelOrder.IsVisible = (selectedOrder?.Status ?? OrderStatus.Cancelled) < OrderStatus.Cancelled;
         }
 
         private void OrdersTable_ItemSelected(object sender, SelectedItemChangedEventArgs e)
@@ -479,7 +481,11 @@ namespace Ambulance.Pages
                             HeightRequest = 0,
                             WidthRequest = 0
                         };
-                        Device.BeginInvokeOnMainThread(() => slFake.Children.Add(webviewMap));
+                        Device.BeginInvokeOnMainThread(() =>
+                        {
+                            if (webviewMap != null)
+                                slFake.Children.Add(webviewMap);
+                        });
                     }
                 }
             });
