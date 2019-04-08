@@ -9,7 +9,8 @@ namespace Ambulance.ObjectModel
         OnPatientPlace = 3,
         OnWayToClinique = 4,
         Cancelled = 5,
-        Done = 6
+        Done = 6,
+        View = 7
     }
 
     public class Order 

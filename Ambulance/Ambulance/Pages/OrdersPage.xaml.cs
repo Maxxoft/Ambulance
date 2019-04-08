@@ -99,7 +99,8 @@ namespace Ambulance.Pages
                 if (PageType == PageType.ActiveOrder)
                 {
                     curOrders = new List<Order>();
-                    if (AppData.Crew.ActiveOrder != null)
+                    var curStatus = AppData.Crew.ActiveOrder?.Status ?? OrderStatus.Cancelled;
+                    if (curStatus != OrderStatus.Cancelled && curStatus != OrderStatus.Done)
                         curOrders.Add(AppData.Crew.ActiveOrder);
                     //btnSwitch.Text = string.Format("НОВЫЕ ЗАКАЗЫ ({0})", AppData.Orders?.Count ?? 0);
                 }
@@ -302,20 +303,11 @@ namespace Ambulance.Pages
                     await DisplayAlert("Ошибка", res, "OK");
                     return;
                 }
-
-                if (selectedOrder.Status == OrderStatus.Assigned)
-                {
-                    AppData.Crew.ActiveOrder = selectedOrder;
-                    AppData.Orders.Remove(selectedOrder);
-                    PageType = PageType.ActiveOrder;
-                }
-                else if (selectedOrder.Status == OrderStatus.Done)
-                {
+                if (selectedOrder.Status == OrderStatus.Done)
                     AppData.Crew.ActiveOrder = null;
-                    PageType = PageType.FreeOrders;
-                }
-                else
-                    btnUpdateOrder.Text = OrderHelper.EligibleActionName(selectedOrder.Status);
+                RefreshContent();
+                //gridOrderActions.IsVisible = (selectedOrder?.Status ?? OrderStatus.Cancelled) < OrderStatus.Cancelled;
+                //btnUpdateOrder.Text = OrderHelper.EligibleActionName(selectedOrder.Status);
             }
             finally
             {
@@ -353,6 +345,7 @@ namespace Ambulance.Pages
             }
             AppData.Crew.ActiveOrder = null;
             RefreshContent();
+            //gridOrderActions.IsVisible = (selectedOrder?.Status ?? OrderStatus.Cancelled) < OrderStatus.Cancelled;
         }
 
         private void ResizeTable()
@@ -365,7 +358,7 @@ namespace Ambulance.Pages
         private void SetDetailInfo()
         {
             gridOrderDetails.IsVisible = selectedOrder != null;
-            gridOrderActions.IsVisible = (selectedOrder?.Status ?? OrderStatus.Cancelled) != OrderStatus.Cancelled;
+            gridOrderActions.IsVisible = (selectedOrder?.Status ?? OrderStatus.Cancelled) < OrderStatus.Cancelled;
             if (selectedOrder == null) return;
             lbPatient.Text = "Пациент: " + selectedOrder.SickName + ", " + selectedOrder.SickPhone;
             lbOrder.Text = "№ Заказа: " + selectedOrder.OrderId.ToString();
@@ -375,8 +368,8 @@ namespace Ambulance.Pages
             lbDistance.Text = "До пациента: " + selectedOrder.Distance.ToString() + " км";
             lbComment.Text = "Доп. инфо: " + selectedOrder.Comment;
             btnUpdateOrder.Text = OrderHelper.EligibleActionName(selectedOrder.Status);
-            btnUpdateOrder.IsVisible = (selectedOrder?.Status ?? OrderStatus.Cancelled) < OrderStatus.Cancelled;
-            btnCancelOrder.IsVisible = (selectedOrder?.Status ?? OrderStatus.Cancelled) < OrderStatus.Cancelled;
+            //btnUpdateOrder.IsVisible = (selectedOrder?.Status ?? OrderStatus.Cancelled) < OrderStatus.Cancelled;
+            //btnCancelOrder.IsVisible = (selectedOrder?.Status ?? OrderStatus.Cancelled) < OrderStatus.Cancelled;
         }
 
         private void OrdersTable_ItemSelected(object sender, SelectedItemChangedEventArgs e)
@@ -467,26 +460,31 @@ namespace Ambulance.Pages
                     if (!CalcDistance) return;
 
                     calcOrder = null;
-                    if ((DateTime.Now - (AppData.Crew.ActiveOrder?.CalcDistanceDate ?? DateTime.Now)).TotalMinutes > 5)
+                    if ((DateTime.Now - (AppData.Crew.ActiveOrder?.CalcDistanceDate ?? DateTime.Now)).TotalMinutes > 3)
                         calcOrder = AppData.Crew.ActiveOrder;
                     if (calcOrder == null)
-                        calcOrder = curOrders?.FirstOrDefault(x => (DateTime.Now - x.CalcDistanceDate).TotalMinutes > 5);
+                        calcOrder = curOrders?.FirstOrDefault(x => (DateTime.Now - x.CalcDistanceDate).TotalMinutes > 3);
                     if (calcOrder != null)
                     {
-                        webviewMap = new WebviewMap
+                        var curLoc = DependencyService.Get<IAPIHelper>().GetCurrentLocation();
+                        if (curLoc?.Latitude > 0 && curLoc?.Longitude > 0)
                         {
-                            ParentPage = this,
-                            MapId = MapType.OptimalRoute,
-                            Order = calcOrder,
-                            HeightRequest = 0,
-                            WidthRequest = 0
-                        };
-                        Device.BeginInvokeOnMainThread(() =>
-                        {
-                            if (webviewMap != null)
-                                slFake.Children.Add(webviewMap);
-                        });
+                            webviewMap = new WebviewMap
+                            {
+                                ParentPage = this,
+                                MapId = MapType.OptimalRoute,
+                                Order = calcOrder,
+                                HeightRequest = 0,
+                                WidthRequest = 0
+                            };
+                            Device.BeginInvokeOnMainThread(() =>
+                            {
+                                if (webviewMap != null)
+                                    slFake.Children.Add(webviewMap);
+                            });
+                        }
                     }
+                    await Task.Delay(60000);
                 }
             });
         }
