@@ -113,8 +113,8 @@ namespace Ambulance.Droid
 
 #if DEBUG
             RequestAmount = 0,
-            //  Latitude = 55.75,
-            // Longitude = 37.61
+            //Latitude = 55.75,
+            //Longitude = 37.61
 #else
             RequestAmount = 0,
 			Latitude = 0,

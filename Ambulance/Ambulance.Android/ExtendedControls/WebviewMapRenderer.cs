@@ -289,7 +289,6 @@ namespace Ambulance.Droid.ExtendedControls
 
             return distance;
         }
-
     }
 
     public class WebviewJSBridge : Java.Lang.Object
